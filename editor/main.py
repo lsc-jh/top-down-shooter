@@ -1,5 +1,6 @@
 import pygame
 import csv
+from lib import load_tileset, draw_crossed_box
 
 TILE_SIZE = 16
 SCALE = 3
@@ -11,28 +12,6 @@ MAP_HEIGHT = 15
 PALETTE_COLS = 5
 SCREEN_WIDTH = 1200
 SCREEN_HEIGHT = 900
-
-
-def load_tileset(path, tile_size):
-    image = pygame.image.load(path).convert_alpha()
-    tiles = []
-    w, h = image.get_size()
-
-    for y in range(0, h - tile_size + 1, tile_size):
-        for x in range(0, w - tile_size + 1, tile_size):
-            tile = image.subsurface((x, y, tile_size, tile_size))
-            tiles.append(tile)
-
-    empty_tile = pygame.Surface((tile_size, tile_size), pygame.SRCALPHA)
-    tiles.insert(0, empty_tile)
-
-    return tiles
-
-
-def draw_crossed_box(screen, x, y, size, color):
-    pygame.draw.rect(screen, color, (x, y, size, size), 1)
-    pygame.draw.line(screen, color, (x, y), (x + size, y + size), 1)
-    pygame.draw.line(screen, color, (x + size, y), (x, y + size), 1)
 
 
 class Editor:
