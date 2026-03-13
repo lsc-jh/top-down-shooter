@@ -1,6 +1,6 @@
 import pygame
 import csv
-from lib import load_tileset, draw_crossed_box
+from lib import load_tileset, draw_crossed_box, choose_tileset
 
 TILE_SIZE = 16
 SCALE = 3
@@ -115,6 +115,10 @@ class Editor:
                         self.load_map("map.csv")
                     if event.key == pygame.K_h:
                         self.show_tile_properties = not self.show_tile_properties
+                    if event.key == pygame.K_t:
+                        path = choose_tileset()
+                        if path:
+                            self.load(path)
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mx, my = event.pos
@@ -157,7 +161,7 @@ def main():
     pygame.display.set_caption("Tile Map Editor")
 
     editor = Editor()
-    editor.load("assets/TILES.png")
+    editor.load("./assets/tileset.png")
     editor.run()
 
 
