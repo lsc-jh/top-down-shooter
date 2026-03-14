@@ -2,8 +2,8 @@ import pygame
 import csv
 from lib import load_tileset, draw_crossed_box, choose_tileset
 
-TILE_SIZE = 16
-SCALE = 3
+TILE_SIZE = 8
+SCALE = 4
 DRAW_TILE_SIZE = TILE_SIZE * SCALE
 
 MAP_WIDTH = 20
@@ -149,7 +149,7 @@ class Editor:
             self.draw_palette()
             self.draw_map()
 
-            font = pygame.font.SysFont(None, 36)
+            font = pygame.font.SysFont(None, 26)
             label = font.render("H: toggle props | T: load tileset | S/L: save/load", True, (200, 200, 200))
             self.screen.blit(label, (palette_width + 10, SCREEN_HEIGHT - 25))
 
@@ -161,7 +161,7 @@ def main():
     pygame.display.set_caption("Tile Map Editor")
 
     editor = Editor()
-    editor.load("./assets/tileset.png")
+    editor.load("assets/tileset.png")
     editor.run()
 
 
