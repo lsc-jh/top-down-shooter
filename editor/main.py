@@ -39,6 +39,7 @@ class Editor:
             "tile_size": self.tile_size,
             "scale": self.scale,
             "blocked_tiles": list(self.blocked_tiles),
+            "window_size": [self.screen_width, self.screen_height],
             "layers": {
                 "ground": self.ground_level,
                 "upper": self.upper_level
@@ -64,6 +65,10 @@ class Editor:
 
         self.ground_level = data["layers"]["ground"]
         self.upper_level = data["layers"]["upper"]
+
+        if "window_size" in data:
+            self.screen_width, self.screen_height = data["window_size"]
+            self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.RESIZABLE)
 
     def draw_palette(self):
         rows_visible = self.screen_height // self.draw_tile_size
@@ -144,22 +149,24 @@ class Editor:
 
     def change_path(self, path):
         self.path = path
-        self.load()
+        self.load(True)
 
-    def load(self):
+    def load(self, new_map=False):
         raw_tiles = load_tileset(self.path, self.tile_size)
 
         self.tiles = [
             pygame.transform.scale(tile, (self.draw_tile_size, self.draw_tile_size)) for tile in raw_tiles
         ]
 
-        self.ground_level = []
-        for _ in range(MAP_HEIGHT):
-            row = []
-            for _ in range(MAP_WIDTH):
-                row.append((0, 0))  # (tile_index, rotation)
-            self.ground_level.append(row[:])
-            self.upper_level.append(row[:])
+        if new_map:
+            self.ground_level = []
+            self.upper_level = []
+            for _ in range(MAP_HEIGHT):
+                row = []
+                for _ in range(MAP_WIDTH):
+                    row.append((0, 0))  # (tile_index, rotation)
+                self.ground_level.append(row[:])
+                self.upper_level.append(row[:])
 
     def run(self):
         running = True
@@ -183,7 +190,6 @@ class Editor:
                     if event.key == pygame.K_t:
                         path = choose_tileset()
                         self.change_path(path)
-                        self.load()
                     if event.key == pygame.K_f:
                         for y in range(MAP_HEIGHT):
                             for x in range(MAP_WIDTH):
@@ -253,7 +259,7 @@ def main():
     pygame.display.set_caption("Tile Map Editor")
 
     editor = Editor()
-    editor.load()
+    editor.load(True)
     editor.run()
 
 
