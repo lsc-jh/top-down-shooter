@@ -15,7 +15,9 @@ SCREEN_HEIGHT = 1000
 
 class Editor:
     def __init__(self):
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.screen_width = SCREEN_WIDTH
+        self.screen_height = SCREEN_HEIGHT
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.RESIZABLE)
         self.ground_level = []  # type: list[list[tuple[int, int]]]
         self.upper_level = []  # type: list[list[tuple[int, int]]]
         self.selected_level = "ground"
@@ -42,7 +44,7 @@ class Editor:
             self.ground_level = [list(map(int, row)) for row in reader]
 
     def draw_palette(self):
-        rows_visible = SCREEN_HEIGHT // self.draw_tile_size
+        rows_visible = self.screen_height // self.draw_tile_size
         max_slots = rows_visible * PALETTE_COLS
         drawn_tiles = 0
         for i, tile in enumerate(self.tiles):
@@ -97,20 +99,26 @@ class Editor:
 
         font = pygame.font.SysFont(None, 26)
 
-        editing_tips = "F: fill map | Right-click palette: toggle blocked | Click map: place tile"
-        edit_text = font.render(editing_tips, True, (200, 200, 200))
-        self.screen.blit(edit_text, (palette_width + 10, SCREEN_HEIGHT - 100))
+        map_bottom = MAP_HEIGHT * self.draw_tile_size + 10
+        palette_right = palette_width + 10
 
-        tips = font.render("H: toggle props | T: load tileset | S/L: save/load", True, (200, 200, 200))
-        self.screen.blit(tips, (palette_width + 10, SCREEN_HEIGHT - 25))
+        layer_text = font.render(f"Current layer: {self.selected_level.capitalize()}", True, (200, 200, 200))
+        self.screen.blit(layer_text, (palette_right, map_bottom))
 
-        size_tips = f"+/-: change scale ({self.scale}x) | Shift +/-: change tile size ({self.tile_size}px)"
-        size_text = font.render(size_tips, True, (200, 200, 200))
-        self.screen.blit(size_text, (palette_width + 10, SCREEN_HEIGHT - 75))
+        rotation_text = font.render(f"Current rotation: {self.current_rotation * 90}deg", True, (200, 200, 200))
+        self.screen.blit(rotation_text, (palette_right, map_bottom + 25))
 
-        tile_info = f"Tile size: {TILE_SIZE}x{TILE_SIZE} | Map: {MAP_WIDTH}x{MAP_HEIGHT}"
-        info_text = font.render(tile_info, True, (200, 200, 200))
-        self.screen.blit(info_text, (palette_width + 10, SCREEN_HEIGHT - 50))
+        tips = "H: toggle props | T: load tileset | S/L: save/load map | F: fill layer"
+        tips_text = font.render(tips, True, (200, 200, 200))
+        self.screen.blit(tips_text, (palette_width + 10, self.screen_height - 25))
+
+        scale = f"+/-: change scale ({self.scale}x)"
+        scale_text = font.render(scale, True, (200, 200, 200))
+        self.screen.blit(scale_text, (palette_width + 10, self.screen_height - 50))
+
+        size = f"Shift + +/-: change tile size ({self.tile_size}px)"
+        size_text = font.render(size, True, (200, 200, 200))
+        self.screen.blit(size_text, (palette_width + 10, self.screen_height - 75))
 
     def change_path(self, path):
         self.path = path
@@ -132,8 +140,6 @@ class Editor:
             self.upper_level.append(row[:])
 
     def run(self):
-        clock = pygame.time.Clock()
-
         running = True
         while running:
             palette_width = PALETTE_COLS * self.draw_tile_size
@@ -141,6 +147,9 @@ class Editor:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+
+                if event.type == pygame.VIDEORESIZE:
+                    self.screen_width, self.screen_height = event.size
 
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_s:
