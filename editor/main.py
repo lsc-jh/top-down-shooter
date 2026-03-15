@@ -82,6 +82,9 @@ class Editor:
                     draw_crossed_box(self.screen, x, y, DRAW_TILE_SIZE, (0, 150, 255))
 
     def load(self, path):
+        if not path:
+            print("No tileset path provided.")
+            return
         raw_tiles = load_tileset(path, TILE_SIZE)
 
         self.tiles = [

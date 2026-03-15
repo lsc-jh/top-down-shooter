@@ -1,5 +1,6 @@
 import pygame
-from tkinter import filedialog
+import subprocess
+import json
 
 
 def load_tileset(path, tile_size):
@@ -24,11 +25,29 @@ def draw_crossed_box(screen, x, y, size, color):
     pygame.draw.line(screen, color, (x + size, y), (x, y + size), 1)
 
 
+import subprocess
+import os
+import sys
+
+
 def choose_tileset():
-    root = filedialog.Tk()
-    root.withdraw()
-    file_path = filedialog.askopenfilename(
-        title="Select Tileset Image",
-        filetypes=[("Image Files", "*.png;*.jpg;*.bmp")]
+    if getattr(sys, "frozen", False):
+        base = sys._MEIPASS
+    else:
+        base = os.path.dirname(__file__)
+
+    picker = os.path.join(base, "file_picker.py")
+
+    result = subprocess.run(
+        [sys.executable, picker],
+        capture_output=True,
+        text=True
     )
-    return file_path
+
+    raw_json = result.stdout.strip()
+    try:
+        data = json.loads(raw_json)
+        return data.get("path", None)
+    except json.JSONDecodeError:
+        print("Failed to decode JSON from file picker:", raw_json)
+        return None
