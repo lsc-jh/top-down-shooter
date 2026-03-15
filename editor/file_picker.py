@@ -3,7 +3,6 @@ from tkinter import filedialog
 import json
 
 root = tk.Tk()
-# Hide the main window
 root.withdraw()
 root.focus_force()
 
