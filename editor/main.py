@@ -1,6 +1,6 @@
 import pygame
-import csv
 from lib import load_tileset, draw_crossed_box, choose_tileset
+import json
 
 TILE_SIZE = 8
 SCALE = 4
@@ -33,15 +33,37 @@ class Editor:
         self.show_tile_properties = True
 
     def save_map(self, path):
-        with open(path, "w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerows(self.ground_level)
+        data = {
+            "version": 1,
+            "tileset": self.path,
+            "tile_size": self.tile_size,
+            "scale": self.scale,
+            "blocked_tiles": list(self.blocked_tiles),
+            "layers": {
+                "ground": self.ground_level,
+                "upper": self.upper_level
+            }
+        }
+
+        with open(path, "w") as f:
+            json.dump(data, f)
+
         print(f"Map saved to {path}")
 
     def load_map(self, path):
         with open(path, "r") as f:
-            reader = csv.reader(f)
-            self.ground_level = [list(map(int, row)) for row in reader]
+            data = json.load(f)
+
+        self.path = data["tileset"]
+        self.tile_size = data["tile_size"]
+        self.scale = data["scale"]
+        self.draw_tile_size = self.tile_size * self.scale
+        self.load()
+
+        self.blocked_tiles = set(data["blocked_tiles"])
+
+        self.ground_level = data["layers"]["ground"]
+        self.upper_level = data["layers"]["upper"]
 
     def draw_palette(self):
         rows_visible = self.screen_height // self.draw_tile_size
@@ -153,9 +175,9 @@ class Editor:
 
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_s:
-                        self.save_map("map.csv")
+                        self.save_map("saved.json")
                     if event.key == pygame.K_l:
-                        self.load_map("map.csv")
+                        self.load_map("saved.json")
                     if event.key == pygame.K_h:
                         self.show_tile_properties = not self.show_tile_properties
                     if event.key == pygame.K_t:
