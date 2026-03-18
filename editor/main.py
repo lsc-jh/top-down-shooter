@@ -149,7 +149,8 @@ class Editor:
 
     def change_path(self, path):
         self.path = path
-        self.load(True)
+        if self.path:
+            self.load(True)
 
     def load(self, new_map=False):
         raw_tiles = load_tileset(self.path, self.tile_size)
@@ -181,6 +182,8 @@ class Editor:
                     self.screen_width, self.screen_height = event.size
 
                 if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_q:
+                        running = False
                     if event.key == pygame.K_s:
                         self.save_map("saved.json")
                     if event.key == pygame.K_l:
