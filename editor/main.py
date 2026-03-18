@@ -12,6 +12,15 @@ PALETTE_COLS = 5
 SCREEN_WIDTH = 1400
 SCREEN_HEIGHT = 1000
 
+VIM_KEYS = [pygame.K_h, pygame.K_j, pygame.K_k, pygame.K_l]
+
+VIM_NAV_KEYS = {
+    pygame.K_h: (-1, 0),
+    pygame.K_j: (0, 1),
+    pygame.K_k: (0, -1),
+    pygame.K_l: (1, 0)
+}
+
 
 class Editor:
     def __init__(self):
@@ -22,12 +31,14 @@ class Editor:
         self.upper_level = []  # type: list[list[tuple[int, int]]]
         self.selected_level = "ground"
         self.selected_tile = 0
+        self.selected_map_tile = (0, 0)
         self.current_rotation = 0
         self.tiles = []
         self.blocked_tiles = set()
         self.tile_size = TILE_SIZE
         self.scale = SCALE
         self.draw_tile_size = self.tile_size * self.scale
+        self.selected_window = "palette"
 
         self.path = "assets/tileset.png"
         self.show_tile_properties = True
@@ -120,6 +131,13 @@ class Editor:
 
                 if ground_index in self.blocked_tiles or upper_index in self.blocked_tiles and self.show_tile_properties:
                     draw_crossed_box(self.screen, draw_x, draw_y, self.draw_tile_size, (0, 150, 255))
+                if self.selected_window == "map" and (x, y) == self.selected_map_tile:
+                    pygame.draw.rect(
+                        self.screen,
+                        (255, 255, 0),
+                        (draw_x, draw_y, self.draw_tile_size, self.draw_tile_size),
+                        2
+                    )
 
     def draw_tips(self):
         palette_width = PALETTE_COLS * self.draw_tile_size
@@ -135,7 +153,7 @@ class Editor:
         rotation_text = font.render(f"Current rotation: {self.current_rotation * 90}deg", True, (200, 200, 200))
         self.screen.blit(rotation_text, (palette_right, map_bottom + 25))
 
-        tips = "H: toggle props | T: load tileset | S/L: save/load map | F: fill layer"
+        tips = "H: toggle props | T: load tileset | S/O: save/load map | F: fill layer"
         tips_text = font.render(tips, True, (200, 200, 200))
         self.screen.blit(tips_text, (palette_width + 10, self.screen_height - 25))
 
@@ -186,7 +204,11 @@ class Editor:
                         running = False
                     if event.key == pygame.K_s:
                         self.save_map("saved.json")
-                    if event.key == pygame.K_l:
+                    if event.key == pygame.K_o:
+                        self.selected_map_tile = (0, 0)
+                        self.current_rotation = 0
+                        self.selected_level = "ground"
+                        self.selected_tile = 0
                         self.load_map("saved.json")
                     if event.key == pygame.K_h:
                         self.show_tile_properties = not self.show_tile_properties
@@ -197,13 +219,46 @@ class Editor:
                         for y in range(MAP_HEIGHT):
                             for x in range(MAP_WIDTH):
                                 self.ground_level[y][x] = (self.selected_tile, self.current_rotation)
-
                     if event.key == pygame.K_1:
                         self.selected_level = "ground"
                     if event.key == pygame.K_2:
                         self.selected_level = "upper"
                     if event.key == pygame.K_r:
                         self.current_rotation = (self.current_rotation + 1) % 4
+                    if event.key in VIM_KEYS:
+                        if pygame.key.get_mods() & pygame.KMOD_CTRL:
+                            if event.key == pygame.K_h:
+                                self.selected_window = "palette"
+                            elif event.key == pygame.K_l:
+                                self.selected_window = "map"
+                        if self.selected_window == "palette":
+                            if event.key in VIM_NAV_KEYS:
+                                dx, dy = VIM_NAV_KEYS[event.key]
+                                col = self.selected_tile % PALETTE_COLS
+                                row = self.selected_tile // PALETTE_COLS
+                                new_col = max(0, min(PALETTE_COLS - 1, col + dx))
+                                new_row = max(0, row + dy)
+                                new_index = new_row * PALETTE_COLS + new_col
+                                if 0 <= new_index < len(self.tiles):
+                                    self.selected_tile = new_index
+                        if self.selected_window == "map":
+                            if event.key in VIM_NAV_KEYS:
+                                dx, dy = VIM_NAV_KEYS[event.key]
+                                x, y = self.selected_map_tile
+                                new_x = max(0, min(MAP_WIDTH - 1, x + dx))
+                                new_y = max(0, min(MAP_HEIGHT - 1, y + dy))
+                                self.selected_map_tile = (new_x, new_y)
+                                if pygame.key.get_pressed()[pygame.K_SPACE]:
+                                    if self.selected_level == "ground":
+                                        self.ground_level[new_y][new_x] = (self.selected_tile, self.current_rotation)
+                                    elif self.selected_level == "upper":
+                                        self.upper_level[new_y][new_x] = (self.selected_tile, self.current_rotation)
+                    if event.key == pygame.K_SPACE:
+                        x, y = self.selected_map_tile
+                        if self.selected_level == "ground":
+                            self.ground_level[y][x] = (self.selected_tile, self.current_rotation)
+                        elif self.selected_level == "upper":
+                            self.upper_level[y][x] = (self.selected_tile, self.current_rotation)
 
                     if event.key == pygame.K_EQUALS or event.key == pygame.K_PLUS:
                         if pygame.key.get_mods() & pygame.KMOD_SHIFT:
