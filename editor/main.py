@@ -1,4 +1,5 @@
 import pygame
+from pygame import Event
 from lib import load_tileset, draw_crossed_box, choose_tileset
 import json
 
@@ -21,6 +22,10 @@ VIM_NAV_KEYS = {
     pygame.K_l: (1, 0)
 }
 
+def handle_key_down(event: Event, key, callback):
+    if event.key == key:
+        callback()
+
 
 class Editor:
     def __init__(self):
@@ -42,6 +47,8 @@ class Editor:
 
         self.path = "assets/tileset.png"
         self.show_tile_properties = True
+
+        self.running = True
 
     def save_map(self, path):
         data = {
@@ -188,32 +195,22 @@ class Editor:
                 self.upper_level.append(row[:])
 
     def run(self):
-        running = True
-        while running:
+        while self.running:
             palette_width = PALETTE_COLS * self.draw_tile_size
 
             for event in pygame.event.get():
                 mods = pygame.key.get_mods()
                 if event.type == pygame.QUIT:
-                    running = False
+                    self._quit()
 
                 if event.type == pygame.VIDEORESIZE:
                     self.screen_width, self.screen_height = event.size
 
                 if event.type == pygame.KEYDOWN:
-                    print(f"Key pressed: {pygame.key.name(event.key)}")
-                    if event.key == pygame.K_q:
-                        running = False
-                    if event.key == pygame.K_s:
-                        self.save_map("saved.json")
-                    if event.key == pygame.K_o:
-                        self.selected_map_tile = (0, 0)
-                        self.current_rotation = 0
-                        self.selected_level = "ground"
-                        self.selected_tile = 0
-                        self.load_map("saved.json")
-                    if event.key == pygame.K_h:
-                        self.show_tile_properties = not self.show_tile_properties
+                    handle_key_down(event, pygame.K_q, self._quit)
+                    handle_key_down(event, pygame.K_s, self._save)
+                    handle_key_down(event, pygame.K_o, self._open)
+                    handle_key_down(event, pygame.K_h, self._hide_show_properties)
                     if event.key == pygame.K_t:
                         path = choose_tileset()
                         self.change_path(path)
@@ -328,6 +325,24 @@ class Editor:
             self.draw_tips()
 
             pygame.display.flip()
+
+    def _quit(self):
+        self.running = False
+
+    def _save(self):
+        self.save_map("saved.json")
+
+    def _open(self):
+        self.selected_map_tile = (0, 0)
+        self.current_rotation = 0
+        self.selected_level = "ground"
+        self.selected_tile = 0
+        self.load_map("saved.json")
+
+    def _hide_show_properties(self):
+        self.show_tile_properties = not self.show_tile_properties
+
+
 
 
 def main():
