@@ -2,6 +2,7 @@ import pygame
 from pygame import Event
 from lib import load_tileset, draw_crossed_box, choose_tileset
 import json
+from typing import Callable
 
 TILE_SIZE = 8
 SCALE = 4
@@ -22,9 +23,17 @@ VIM_NAV_KEYS = {
     pygame.K_l: (1, 0)
 }
 
-def handle_key_down(event: Event, key, callback):
-    if event.key == key:
-        callback()
+
+def handle_key_down(event: Event, keys: int | list[int], callback: Callable[[Event], bool | None]):
+    if isinstance(keys, int):
+        if event.key == keys:
+            return callback(event)
+        return None
+
+    if event.key in keys:
+        return callback(event)
+
+    return None
 
 
 class Editor:
@@ -197,11 +206,9 @@ class Editor:
     def run(self):
         while self.running:
             palette_width = PALETTE_COLS * self.draw_tile_size
-
             for event in pygame.event.get():
-                mods = pygame.key.get_mods()
                 if event.type == pygame.QUIT:
-                    self._quit()
+                    self.running = False
 
                 if event.type == pygame.VIDEORESIZE:
                     self.screen_width, self.screen_height = event.size
@@ -213,70 +220,17 @@ class Editor:
                     handle_key_down(event, pygame.K_h, self._hide_show_properties)
                     handle_key_down(event, pygame.K_t, self._select_tileset)
                     handle_key_down(event, pygame.K_f, self._fill_layer)
-                    handle_key_down(event, pygame.K_1, lambda: setattr(self, "selected_level", "ground"))
-                    handle_key_down(event, pygame.K_2, lambda: setattr(self, "selected_level", "upper"))
-                    handle_key_down(event, pygame.K_r, lambda: setattr(self, "current_rotation", (self.current_rotation + 1) % 4))
+                    handle_key_down(event, pygame.K_1, lambda _e: setattr(self, "selected_level", "ground"))
+                    handle_key_down(event, pygame.K_2, lambda _e: setattr(self, "selected_level", "upper"))
+                    handle_key_down(event, pygame.K_r, self._handle_rotation)
                     handle_key_down(event, pygame.K_SPACE, self._place_tile)
-                    if event.key in VIM_KEYS:
-                        if pygame.key.get_mods() & pygame.KMOD_CTRL:
-                            if event.key == pygame.K_h:
-                                self.selected_window = "palette"
-                                continue
-                            elif event.key == pygame.K_l:
-                                self.selected_window = "map"
-                                continue
-                        if self.selected_window == "palette":
-                            if event.key in VIM_NAV_KEYS:
-                                dx, dy = VIM_NAV_KEYS[event.key]
-                                col = self.selected_tile % PALETTE_COLS
-                                row = self.selected_tile // PALETTE_COLS
-                                new_col = max(0, min(PALETTE_COLS - 1, col + dx))
-                                new_row = max(0, row + dy)
-                                new_index = new_row * PALETTE_COLS + new_col
-                                if 0 <= new_index < len(self.tiles):
-                                    self.selected_tile = new_index
-                        if self.selected_window == "map":
-                            if event.key in VIM_NAV_KEYS:
-                                dx, dy = VIM_NAV_KEYS[event.key]
-                                x, y = self.selected_map_tile
-                                new_x = max(0, min(MAP_WIDTH - 1, x + dx))
-                                new_y = max(0, min(MAP_HEIGHT - 1, y + dy))
-                                self.selected_map_tile = (new_x, new_y)
-                                if pygame.key.get_pressed()[pygame.K_SPACE]:
-                                    if self.selected_level == "ground":
-                                        self.ground_level[new_y][new_x] = (self.selected_tile, self.current_rotation)
-                                    elif self.selected_level == "upper":
-                                        self.upper_level[new_y][new_x] = (self.selected_tile, self.current_rotation)
-                            if event.key == pygame.K_g:
-                                if mods & pygame.KMOD_SHIFT:
-                                    x, _ = self.selected_map_tile
-                                    self.selected_map_tile = (x, MAP_HEIGHT - 1)
-                                else:
-                                    x, _ = self.selected_map_tile
-                                    self.selected_map_tile = (x, 0)
-                            if event.key == pygame.K_DOLLAR:
-                                _, y = self.selected_map_tile
-                                self.selected_map_tile = (MAP_WIDTH - 1, y)
-
-                            if event.key == pygame.K_UNDERSCORE:
-                                _, y = self.selected_map_tile
-                                self.selected_map_tile = (0, y)
-
-                    if event.key == pygame.K_EQUALS or event.key == pygame.K_PLUS:
-                        if mods & pygame.KMOD_SHIFT:
-                            self.tile_size = min(64, self.tile_size + 1)
-                        else:
-                            self.scale += 1
-                        self.draw_tile_size = self.tile_size * self.scale
-                        self.load()
-
-                    if event.key == pygame.K_MINUS:
-                        if mods & pygame.KMOD_SHIFT:
-                            self.tile_size = max(4, self.tile_size - 1)
-                        else:
-                            self.scale = max(1, self.scale - 1)
-                        self.draw_tile_size = self.tile_size * self.scale
-                        self.load()
+                    handle_key_down(event, pygame.K_EQUALS, self._handle_tile_size_increase)
+                    handle_key_down(event, pygame.K_MINUS, self._handle_tile_size_decrease)
+                    # the panel change has to stop the chain because it's just normal vim
+                    # navigation with the ctrl held down
+                    if handle_key_down(event, VIM_KEYS, self._handle_selected_panel_change):
+                        continue
+                    handle_key_down(event, VIM_KEYS, self._handle_vim_navigation)
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mx, my = event.pos
@@ -313,39 +267,108 @@ class Editor:
 
             pygame.display.flip()
 
-    def _quit(self):
+    def _quit(self, _e):
         self.running = False
 
-    def _save(self):
+    def _save(self, _e):
         self.save_map("saved.json")
 
-    def _open(self):
+    def _open(self, _e):
         self.selected_map_tile = (0, 0)
         self.current_rotation = 0
         self.selected_level = "ground"
         self.selected_tile = 0
         self.load_map("saved.json")
 
-    def _hide_show_properties(self):
+    def _hide_show_properties(self, _e):
         self.show_tile_properties = not self.show_tile_properties
 
-    def _select_tileset(self):
+    def _select_tileset(self, _e):
         path = choose_tileset()
         self.change_path(path)
 
-    def _fill_layer(self):
+    def _fill_layer(self, _e):
         for y in range(MAP_HEIGHT):
             for x in range(MAP_WIDTH):
                 self.ground_level[y][x] = (self.selected_tile, self.current_rotation)
 
-    def _place_tile(self):
+    def _handle_rotation(self, _e):
+        self.current_rotation = (self.current_rotation + 1) % 4
+
+    def _place_tile(self, _e):
         x, y = self.selected_map_tile
         if self.selected_level == "ground":
             self.ground_level[y][x] = (self.selected_tile, self.current_rotation)
         elif self.selected_level == "upper":
             self.upper_level[y][x] = (self.selected_tile, self.current_rotation)
 
+    def _handle_tile_size_increase(self, _e):
+        mods = pygame.key.get_mods()
+        if mods & pygame.KMOD_CTRL:
+            self.tile_size = min(64, self.tile_size + 1)
+        else:
+            self.scale += 1
+        self.draw_tile_size = self.tile_size * self.scale
+        self.load()
 
+    def _handle_tile_size_decrease(self, _e):
+        mods = pygame.key.get_mods()
+        if mods & pygame.KMOD_SHIFT:
+            self.tile_size = max(4, self.tile_size - 1)
+        else:
+            self.scale = max(1, self.scale - 1)
+        self.draw_tile_size = self.tile_size * self.scale
+        self.load()
+
+    def _handle_selected_panel_change(self, event):
+        if pygame.key.get_mods() & pygame.KMOD_CTRL:
+            if event.key == pygame.K_h:
+                self.selected_window = "palette"
+                return True
+            elif event.key == pygame.K_l:
+                self.selected_window = "map"
+                return True
+
+        return False
+
+    def _handle_vim_navigation(self, event):
+        mods = pygame.key.get_mods()
+        if self.selected_window == "palette":
+            if event.key in VIM_NAV_KEYS:
+                dx, dy = VIM_NAV_KEYS[event.key]
+                col = self.selected_tile % PALETTE_COLS
+                row = self.selected_tile // PALETTE_COLS
+                new_col = max(0, min(PALETTE_COLS - 1, col + dx))
+                new_row = max(0, row + dy)
+                new_index = new_row * PALETTE_COLS + new_col
+                if 0 <= new_index < len(self.tiles):
+                    self.selected_tile = new_index
+        if self.selected_window == "map":
+            if event.key in VIM_NAV_KEYS:
+                dx, dy = VIM_NAV_KEYS[event.key]
+                x, y = self.selected_map_tile
+                new_x = max(0, min(MAP_WIDTH - 1, x + dx))
+                new_y = max(0, min(MAP_HEIGHT - 1, y + dy))
+                self.selected_map_tile = (new_x, new_y)
+                if pygame.key.get_pressed()[pygame.K_SPACE]:
+                    if self.selected_level == "ground":
+                        self.ground_level[new_y][new_x] = (self.selected_tile, self.current_rotation)
+                    elif self.selected_level == "upper":
+                        self.upper_level[new_y][new_x] = (self.selected_tile, self.current_rotation)
+            if event.key == pygame.K_g:
+                if mods & pygame.KMOD_SHIFT:
+                    x, _ = self.selected_map_tile
+                    self.selected_map_tile = (x, MAP_HEIGHT - 1)
+                else:
+                    x, _ = self.selected_map_tile
+                    self.selected_map_tile = (x, 0)
+            if event.key == pygame.K_DOLLAR:
+                _, y = self.selected_map_tile
+                self.selected_map_tile = (MAP_WIDTH - 1, y)
+
+            if event.key == pygame.K_UNDERSCORE:
+                _, y = self.selected_map_tile
+                self.selected_map_tile = (0, y)
 
 
 def main():
