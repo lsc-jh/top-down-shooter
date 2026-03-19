@@ -211,19 +211,12 @@ class Editor:
                     handle_key_down(event, pygame.K_s, self._save)
                     handle_key_down(event, pygame.K_o, self._open)
                     handle_key_down(event, pygame.K_h, self._hide_show_properties)
-                    if event.key == pygame.K_t:
-                        path = choose_tileset()
-                        self.change_path(path)
-                    if event.key == pygame.K_f:
-                        for y in range(MAP_HEIGHT):
-                            for x in range(MAP_WIDTH):
-                                self.ground_level[y][x] = (self.selected_tile, self.current_rotation)
-                    if event.key == pygame.K_1:
-                        self.selected_level = "ground"
-                    if event.key == pygame.K_2:
-                        self.selected_level = "upper"
-                    if event.key == pygame.K_r:
-                        self.current_rotation = (self.current_rotation + 1) % 4
+                    handle_key_down(event, pygame.K_t, self._select_tileset)
+                    handle_key_down(event, pygame.K_f, self._fill_layer)
+                    handle_key_down(event, pygame.K_1, lambda: setattr(self, "selected_level", "ground"))
+                    handle_key_down(event, pygame.K_2, lambda: setattr(self, "selected_level", "upper"))
+                    handle_key_down(event, pygame.K_r, lambda: setattr(self, "current_rotation", (self.current_rotation + 1) % 4))
+                    handle_key_down(event, pygame.K_SPACE, self._place_tile)
                     if event.key in VIM_KEYS:
                         if pygame.key.get_mods() & pygame.KMOD_CTRL:
                             if event.key == pygame.K_h:
@@ -268,12 +261,6 @@ class Editor:
                             if event.key == pygame.K_UNDERSCORE:
                                 _, y = self.selected_map_tile
                                 self.selected_map_tile = (0, y)
-                    if event.key == pygame.K_SPACE:
-                        x, y = self.selected_map_tile
-                        if self.selected_level == "ground":
-                            self.ground_level[y][x] = (self.selected_tile, self.current_rotation)
-                        elif self.selected_level == "upper":
-                            self.upper_level[y][x] = (self.selected_tile, self.current_rotation)
 
                     if event.key == pygame.K_EQUALS or event.key == pygame.K_PLUS:
                         if mods & pygame.KMOD_SHIFT:
@@ -341,6 +328,22 @@ class Editor:
 
     def _hide_show_properties(self):
         self.show_tile_properties = not self.show_tile_properties
+
+    def _select_tileset(self):
+        path = choose_tileset()
+        self.change_path(path)
+
+    def _fill_layer(self):
+        for y in range(MAP_HEIGHT):
+            for x in range(MAP_WIDTH):
+                self.ground_level[y][x] = (self.selected_tile, self.current_rotation)
+
+    def _place_tile(self):
+        x, y = self.selected_map_tile
+        if self.selected_level == "ground":
+            self.ground_level[y][x] = (self.selected_tile, self.current_rotation)
+        elif self.selected_level == "upper":
+            self.upper_level[y][x] = (self.selected_tile, self.current_rotation)
 
 
 
