@@ -95,6 +95,38 @@ class Editor:
             self.screen_width, self.screen_height = data["window_size"]
             self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.RESIZABLE)
 
+    def export_map(self, path):
+        export_data = {
+            "tileset": self.path,
+            "tile_size": self.tile_size,
+            "scale": self.scale,
+            "blocked_tiles": list(self.blocked_tiles),
+            "layers": self.layers,
+        }
+
+        with open(path, "w") as f:
+            json.dump(export_data, f)
+
+        print(f"Map exported to {path}")
+
+    def export_map_as_image(self, path):
+        map_width_px = MAP_WIDTH * self.draw_tile_size
+        map_height_px = MAP_HEIGHT * self.draw_tile_size
+        image = pygame.Surface((map_width_px, map_height_px), pygame.SRCALPHA)
+
+        for y in range(MAP_HEIGHT):
+            for x in range(MAP_WIDTH):
+                draw_x = x * self.draw_tile_size
+                draw_y = y * self.draw_tile_size
+
+                for layer in self.layers:
+                    index, rotation = layer[y][x]
+                    tile = pygame.transform.rotate(self.tiles[index], -90 * rotation)
+                    image.blit(tile, (draw_x, draw_y))
+
+        pygame.image.save(image, path)
+        print(f"Map exported as image to {path}")
+
     def draw_palette(self):
         rows_visible = self.screen_height // self.draw_tile_size
         max_slots = rows_visible * PALETTE_COLS
@@ -128,7 +160,8 @@ class Editor:
 
         for layer in self.layers:
             index = layer[y][x][0]
-            return index in self.blocked_tiles
+            if index in self.blocked_tiles:
+                return True
 
         return False
 
@@ -223,6 +256,7 @@ class Editor:
                     handle_key_down(event, pygame.K_q, self._quit)
                     handle_key_down(event, pygame.K_s, self._save)
                     handle_key_down(event, pygame.K_o, self._open)
+                    handle_key_down(event, pygame.K_e, self._export)
                     handle_key_down(event, pygame.K_h, self._hide_show_properties)
                     handle_key_down(event, pygame.K_t, self._select_tileset)
                     handle_key_down(event, pygame.K_f, self._fill_layer)
@@ -283,6 +317,10 @@ class Editor:
         self.selected_level = 0
         self.selected_tile = 0
         self.load_map("saved.json")
+
+    def _export(self, _e):
+        self.export_map("exported.json")
+        self.export_map_as_image("exported.png")
 
     def _hide_show_properties(self, _e):
         self.show_tile_properties = not self.show_tile_properties
