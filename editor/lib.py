@@ -1,6 +1,7 @@
 from collections.abc import Callable
 
 import pygame
+from pygame import Surface
 import subprocess
 import json
 import platform
@@ -30,29 +31,34 @@ def draw_crossed_box(screen, x, y, size, color):
     pygame.draw.line(screen, color, (x + size, y), (x, y + size), 1)
 
 
-# TODO: Finish this function to support multiple layers and call the callbacks
+Layer = list[list[tuple[int, int]]]
+
+
 def draw_map(
-        screen: pygame.Surface,
+        screen: Surface,
+        tiles: list[Surface],
+        layers: list[Layer],
         map_size: tuple[int, int],
-        layers: list[list[list[tuple[int, int]]]],
-        tiles: list[pygame.Surface],
-        tile_size: int,
+        size,
         offset: tuple[int, int] = (0, 0),
-        on_draw_cells: Callable[list[tuple[int, int]], None] = None,
-):
-    for row in range(map_size[1]):
-        for col in range(map_size[0]):
-            x = col * tile_size + offset[0]
-            y = row * tile_size + offset[1]
-            cells = [layer[row][col] for layer in layers if row < len(layer) and col < len(layer[row])]
-            for tile, rotation in cells:
-                if tile < len(tiles):
-                    image = tiles[tile]
-                    if rotation != 0:
-                        image = pygame.transform.rotate(image, -90 * rotation)
-                    screen.blit(image, (x, y))
-            if on_draw_cells and cells:
-                on_draw_cells(cells)
+        callback: Callable[[int, int, int, int], None] | None = None
+) -> None:
+    width, height = map_size
+    offset_x, offset_y = offset
+    for y in range(width):
+        for x in range(height):
+            draw_x = x * size + offset_x
+            draw_y = y * size + offset_y
+
+            for layer in layers:
+                if y >= len(layer) or x >= len(layer[y]):
+                    continue
+                index, rotation = layer[y][x]
+                tile = pygame.transform.rotate(tiles[index], -90 * rotation)
+                screen.blit(tile, (draw_x, draw_y))
+
+            if callback:
+                callback(x, y, draw_x, draw_y)
 
 
 def choose_tileset():

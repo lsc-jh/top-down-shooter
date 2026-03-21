@@ -1,6 +1,6 @@
 import pygame
 from pygame import Event
-from lib import load_tileset, draw_crossed_box, choose_tileset
+from lib import load_tileset, draw_crossed_box, choose_tileset, draw_map
 import json
 from typing import Callable
 
@@ -166,33 +166,27 @@ class Editor:
         return False
 
     def draw_map(self):
-        for y in range(MAP_HEIGHT):
-            for x in range(MAP_WIDTH):
-                draw_x = PALETTE_COLS * self.draw_tile_size + x * self.draw_tile_size
-                draw_y = y * self.draw_tile_size
+        def callback(x, y, draw_x, draw_y):
+            pygame.draw.rect(
+                self.screen,
+                (60, 60, 60),
+                (draw_x, draw_y, self.draw_tile_size, self.draw_tile_size),
+                1
+            )
 
-                for layer in self.layers:
-                    index = layer[y][x][0]
-                    tile = pygame.transform.rotate(self.tiles[index], -90 * self.current_rotation)
-                    self.screen.blit(tile, (draw_x, draw_y))
+            if self.show_tile_properties and self.is_blocked(x, y):
+                draw_crossed_box(self.screen, draw_x, draw_y, self.draw_tile_size, (0, 150, 255))
 
+            if self.selected_window == "map" and (x, y) == self.selected_map_tile:
                 pygame.draw.rect(
                     self.screen,
-                    (60, 60, 60),
+                    (255, 255, 0),
                     (draw_x, draw_y, self.draw_tile_size, self.draw_tile_size),
-                    1
+                    2
                 )
 
-                if self.show_tile_properties and self.is_blocked(x, y):
-                    draw_crossed_box(self.screen, draw_x, draw_y, self.draw_tile_size, (0, 150, 255))
-
-                if self.selected_window == "map" and (x, y) == self.selected_map_tile:
-                    pygame.draw.rect(
-                        self.screen,
-                        (255, 255, 0),
-                        (draw_x, draw_y, self.draw_tile_size, self.draw_tile_size),
-                        2
-                    )
+        draw_map(self.screen, self.tiles, self.layers, (MAP_WIDTH, MAP_HEIGHT), self.draw_tile_size,
+                 callback=callback)
 
     def draw_tips(self):
         palette_width = PALETTE_COLS * self.draw_tile_size
