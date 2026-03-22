@@ -14,7 +14,9 @@ PALETTE_COLS = 5
 SCREEN_WIDTH = 1400
 SCREEN_HEIGHT = 1000
 
-VIM_KEYS = [pygame.K_h, pygame.K_j, pygame.K_k, pygame.K_l, pygame.K_DOLLAR, pygame.K_UNDERSCORE, pygame.K_g]
+VIM_KEYS = [pygame.K_h, pygame.K_j, pygame.K_k, pygame.K_l]
+
+NUMBERS = [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4]
 
 VIM_NAV_KEYS = {
     pygame.K_h: (-1, 0),
@@ -22,6 +24,12 @@ VIM_NAV_KEYS = {
     pygame.K_k: (0, -1),
     pygame.K_l: (1, 0)
 }
+
+
+def get_number_key_index(event: Event):
+    if event.key in NUMBERS:
+        return NUMBERS.index(event.key)
+    return 0
 
 
 def handle_key_down(event: Event, keys: int | list[int], callback: Callable[[Event], bool | None]):
@@ -44,7 +52,7 @@ class Editor:
         self.screen_width = SCREEN_WIDTH
         self.screen_height = SCREEN_HEIGHT
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.RESIZABLE)
-        self.layer_count = 3
+        self.layer_count = 4
         self.layers: list[Layer] = [[] for _ in range(self.layer_count)]
         self.selected_level = 0
         self.selected_tile = 0
@@ -90,6 +98,9 @@ class Editor:
 
         self.blocked_tiles = set(data["blocked_tiles"])
         self.layers = data["layers"]
+        if len(self.layers) < self.layer_count:
+            for _ in range(self.layer_count - len(self.layers)):
+                self.layers.append([[(0, 0) for _ in range(MAP_WIDTH)] for _ in range(MAP_HEIGHT)])
 
         if "window_size" in data:
             self.screen_width, self.screen_height = data["window_size"]
@@ -99,7 +110,6 @@ class Editor:
         export_data = {
             "tileset": self.path,
             "tile_size": self.tile_size,
-            "scale": self.scale,
             "blocked_tiles": list(self.blocked_tiles),
             "layers": self.layers,
         }
@@ -207,10 +217,9 @@ class Editor:
             "R: Rotate Tile",
             "Space: Place Tile",
             "+/-: Change Tile Scale (ctrl for changing the tile size)",
-            "Ctrl+H/L: Switch between Palette and Map",
+            "Ctrl + H/L: Switch between Palette and Map",
             "Vim Keys (HJKL) to navigate in selected panel",
             "G to go to start/end of column (with Shift for end/start)",
-            "$/_ to go to end/start of row"
         ]
 
         available_tips = (self.screen_height - map_bottom) // 30
@@ -266,8 +275,7 @@ class Editor:
                     handle_key_down(event, pygame.K_h, self._hide_show_properties)
                     handle_key_down(event, pygame.K_t, self._select_tileset)
                     handle_key_down(event, pygame.K_f, self._fill_layer)
-                    handle_key_down(event, pygame.K_1, lambda _e: setattr(self, "selected_level", 0))
-                    handle_key_down(event, pygame.K_2, lambda _e: setattr(self, "selected_level", 1))
+                    handle_key_down(event, NUMBERS, self._handle_change_layer)
                     handle_key_down(event, pygame.K_r, self._handle_rotation)
                     handle_key_down(event, pygame.K_SPACE, self._place_tile)
                     handle_key_down(event, pygame.K_EQUALS, self._handle_tile_size_increase)
@@ -375,6 +383,9 @@ class Editor:
                 return True
 
         return False
+
+    def _handle_change_layer(self, event):
+        self.selected_level = get_number_key_index(event)
 
     def _handle_vim_navigation(self, event):
         mods = pygame.key.get_mods()
