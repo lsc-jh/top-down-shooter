@@ -45,8 +45,8 @@ def draw_map(
 ) -> None:
     width, height = map_size
     offset_x, offset_y = offset
-    for y in range(width):
-        for x in range(height):
+    for y in range(height):
+        for x in range(width):
             draw_x = x * size + offset_x
             draw_y = y * size + offset_y
 
@@ -58,7 +58,10 @@ def draw_map(
                 screen.blit(tile, (draw_x, draw_y))
 
             if callback:
-                callback(x, y, draw_x, draw_y)
+                try:
+                    callback(x, y, draw_x, draw_y)
+                except Exception as e:
+                    print(f"Error in callback for tile ({x}, {y}): {e}")
 
 
 def choose_tileset():

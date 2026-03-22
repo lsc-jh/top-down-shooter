@@ -186,6 +186,7 @@ class Editor:
                 )
 
         draw_map(self.screen, self.tiles, self.layers, (MAP_WIDTH, MAP_HEIGHT), self.draw_tile_size,
+                 (PALETTE_COLS * self.draw_tile_size, 0),
                  callback=callback)
 
     def draw_tips(self):
