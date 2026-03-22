@@ -191,29 +191,40 @@ class Editor:
 
     def draw_tips(self):
         palette_width = PALETTE_COLS * self.draw_tile_size
-
-        font = pygame.font.SysFont(None, 26)
+        font = pygame.font.SysFont(None, 24)
 
         map_bottom = MAP_HEIGHT * self.draw_tile_size + 10
         palette_right = palette_width + 10
 
-        layer_text = font.render(f"Current layer: {self.selected_level + 1}", True, (200, 200, 200))
-        self.screen.blit(layer_text, (palette_right, map_bottom))
+        tips = [
+            "Q: Quit",
+            "S: Save",
+            "O: Open",
+            "E: Export",
+            "Shift + H: Hide/Show Tile Properties",
+            "T: Select Tileset",
+            "F: Fill Layer",
+            "R: Rotate Tile",
+            "Space: Place Tile",
+            "+/-: Change Tile Scale (ctrl for changing the tile size)",
+            "Ctrl+H/L: Switch between Palette and Map",
+            "Vim Keys (HJKL) to navigate in selected panel",
+            "G to go to start/end of column (with Shift for end/start)",
+            "$/_ to go to end/start of row"
+        ]
 
-        rotation_text = font.render(f"Current rotation: {self.current_rotation * 90}deg", True, (200, 200, 200))
-        self.screen.blit(rotation_text, (palette_right, map_bottom + 25))
+        available_tips = (self.screen_height - map_bottom) // 30
 
-        tips = "H: toggle props | T: load tileset | S/O: save/load map | F: fill layer"
-        tips_text = font.render(tips, True, (200, 200, 200))
-        self.screen.blit(tips_text, (palette_width + 10, self.screen_height - 25))
-
-        scale = f"+/-: change scale ({self.scale}x)"
-        scale_text = font.render(scale, True, (200, 200, 200))
-        self.screen.blit(scale_text, (palette_width + 10, self.screen_height - 50))
-
-        size = f"Shift + +/-: change tile size ({self.tile_size}px)"
-        size_text = font.render(size, True, (200, 200, 200))
-        self.screen.blit(size_text, (palette_width + 10, self.screen_height - 75))
+        for i, tip in enumerate(tips):
+            if i >= available_tips:
+                text = font.render(tip, True, (255, 255, 0))
+                text_size = text.get_size()
+                left = self.screen_width - text_size[0] - 10
+                top = map_bottom + (i - available_tips) * 30
+                self.screen.blit(text, (left, top))
+            else:
+                text = font.render(tip, True, (200, 200, 200))
+                self.screen.blit(text, (palette_right, map_bottom + i * 30))
 
     def change_path(self, path):
         self.path = path

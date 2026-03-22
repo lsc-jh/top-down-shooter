@@ -1,6 +1,8 @@
 .venv
 venv
 
+copilot.*
+
 __pycache__/
 *.pyc
 *.pyo
