@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>3D Tilemap</title>
+    <script type="importmap">
+        {
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.183.2/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.183.2/examples/jsm/"
+  }
+        }
+    </script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+
+        #three {
+            position: fixed;
+            inset: 0;
+        }
+
+        #ui {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+
+            background: rgba(20, 20, 20, 0.7);
+            backdrop-filter: blur(8px);
+            padding: 12px;
+            border-radius: 12px;
+            color: white;
+        }
+
+        canvas {
+            border: 1px solid #444;
+            image-rendering: pixelated;
+        }
+
+        .controls {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .hint {
+            font-size: 11px;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+
+<div id="three"></div>
+
+<div id="ui">
+    <canvas id="map2d" width="200" height="100"></canvas>
+
+    <div class="controls">
+        <div>Layer: <span id="layerLabel">0</span></div>
+        <div>Tile: <span id="tileLabel">1</span></div>
+        <div class="hint">1/2 = layer | QWER = tile</div>
+    </div>
+
+</div>
+<script type="module" src="./main.js"></script>
+
+</body>
+</html>
