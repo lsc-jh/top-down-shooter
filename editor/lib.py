@@ -1,5 +1,4 @@
 from collections.abc import Callable
-
 import pygame
 from pygame import Surface
 import subprocess
@@ -7,6 +6,8 @@ import json
 import platform
 import os
 import sys
+
+Layer = list[list[tuple[int, int]]]
 
 
 def load_tileset(path, tile_size):
@@ -29,9 +30,6 @@ def draw_crossed_box(screen, x, y, size, color):
     pygame.draw.rect(screen, color, (x, y, size, size), 1)
     pygame.draw.line(screen, color, (x, y), (x + size, y + size), 1)
     pygame.draw.line(screen, color, (x + size, y), (x, y + size), 1)
-
-
-Layer = list[list[tuple[int, int]]]
 
 
 def draw_map(

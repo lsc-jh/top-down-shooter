@@ -1,6 +1,6 @@
 import pygame
 from pygame import Event
-from lib import load_tileset, draw_crossed_box, choose_tileset, draw_map
+from lib import load_tileset, draw_crossed_box, choose_tileset, draw_map, Layer
 import json
 from typing import Callable
 
@@ -42,9 +42,6 @@ def handle_key_down(event: Event, keys: int | list[int], callback: Callable[[Eve
         return callback(event)
 
     return None
-
-
-Layer = list[list[tuple[int, int]]]
 
 
 class Editor:
@@ -123,17 +120,7 @@ class Editor:
         map_width_px = MAP_WIDTH * self.draw_tile_size
         map_height_px = MAP_HEIGHT * self.draw_tile_size
         image = pygame.Surface((map_width_px, map_height_px), pygame.SRCALPHA)
-
-        for y in range(MAP_HEIGHT):
-            for x in range(MAP_WIDTH):
-                draw_x = x * self.draw_tile_size
-                draw_y = y * self.draw_tile_size
-
-                for layer in self.layers:
-                    index, rotation = layer[y][x]
-                    tile = pygame.transform.rotate(self.tiles[index], -90 * rotation)
-                    image.blit(tile, (draw_x, draw_y))
-
+        draw_map(image, self.tiles, self.layers, (MAP_WIDTH, MAP_HEIGHT), self.draw_tile_size)
         pygame.image.save(image, path)
         print(f"Map exported as image to {path}")
 
