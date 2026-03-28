@@ -65,9 +65,13 @@ class Renderer:
         self.__path = path
         self.__tile_size = tile_size
         self.__render_scale = render_scale
-        self.__raw_tiles = load_tileset(path, tile_size)
-        rendered_size = tile_size * render_scale
-        self.__tiles = [pygame.transform.scale(tile, (rendered_size, rendered_size)) for tile in self.__raw_tiles]
+        self.__raw_tiles = []
+        self.__tiles = []
+
+    def load(self):
+        self.__raw_tiles = load_tileset(self.__path, self.__tile_size)
+        self.__tiles = [pygame.transform.scale(tile, (self.render_tile_size, self.render_tile_size)) for tile in
+                        self.__raw_tiles]
 
     def set_tile_size(self, new_size: int):
         self.__tile_size = new_size
