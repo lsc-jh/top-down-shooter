@@ -1,8 +1,9 @@
 import pygame
 from pygame import Event
-from lib import load_tileset, draw_crossed_box, choose_tileset, draw_map, Layer
+from lib import load_tileset, draw_crossed_box, choose_tileset
 import json
 from typing import Callable
+from renderer import Renderer, Layer
 
 TILE_SIZE = 8
 SCALE = 4
@@ -28,7 +29,7 @@ VIM_NAV_KEYS = {
 
 def get_number_key_index(event: Event):
     if event.key in NUMBERS:
-        return NUMBERS.index(event.key)
+        return NUMBERS.index(event.key) + 1
     return 0
 
 
@@ -64,8 +65,10 @@ class Editor:
 
         self.path = "assets/tileset.png"
         self.show_tile_properties = True
+        self.show_borders = True
 
         self.running = True
+        self.renderer = Renderer((MAP_WIDTH, MAP_HEIGHT), self.draw_tile_size, self.tiles)
 
     def save_map(self, path):
         data = {
@@ -120,7 +123,7 @@ class Editor:
         map_width_px = MAP_WIDTH * self.draw_tile_size
         map_height_px = MAP_HEIGHT * self.draw_tile_size
         image = pygame.Surface((map_width_px, map_height_px), pygame.SRCALPHA)
-        draw_map(image, self.tiles, self.layers, (MAP_WIDTH, MAP_HEIGHT), self.draw_tile_size)
+        self.renderer.render(image, self.layers)
         pygame.image.save(image, path)
         print(f"Map exported as image to {path}")
 
@@ -164,12 +167,13 @@ class Editor:
 
     def draw_map(self):
         def callback(x, y, draw_x, draw_y):
-            pygame.draw.rect(
-                self.screen,
-                (60, 60, 60),
-                (draw_x, draw_y, self.draw_tile_size, self.draw_tile_size),
-                1
-            )
+            if self.show_borders:
+                pygame.draw.rect(
+                    self.screen,
+                    (60, 60, 60),
+                    (draw_x, draw_y, self.draw_tile_size, self.draw_tile_size),
+                    1
+                )
 
             if self.show_tile_properties and self.is_blocked(x, y):
                 draw_crossed_box(self.screen, draw_x, draw_y, self.draw_tile_size, (0, 150, 255))
@@ -182,9 +186,7 @@ class Editor:
                     2
                 )
 
-        draw_map(self.screen, self.tiles, self.layers, (MAP_WIDTH, MAP_HEIGHT), self.draw_tile_size,
-                 (PALETTE_COLS * self.draw_tile_size, 0),
-                 callback=callback)
+        self.renderer.render(self.screen, self.layers, (PALETTE_COLS * self.draw_tile_size, 0), callback=callback)
 
     def draw_tips(self):
         palette_width = PALETTE_COLS * self.draw_tile_size
@@ -198,7 +200,9 @@ class Editor:
             "S: Save",
             "O: Open",
             "E: Export",
-            "Shift + H: Hide/Show Tile Properties",
+            "Shift + 1-4: Toggle Layer Visibility (not implemented)",
+            "Ctrl + 1: Toggle Tile Properties",
+            "Ctrl + 2: Toggle Borders"
             "T: Select Tileset",
             "F: Fill Layer",
             "R: Rotate Tile",
@@ -244,6 +248,9 @@ class Editor:
                 for layer in self.layers:
                     layer.append(row[:])
 
+        self.renderer.set_tiles(self.tiles)
+        self.renderer.set_tile_size(self.draw_tile_size)
+
     def run(self):
         while self.running:
             palette_width = PALETTE_COLS * self.draw_tile_size
@@ -255,11 +262,17 @@ class Editor:
                     self.screen_width, self.screen_height = event.size
 
                 if event.type == pygame.KEYDOWN:
+                    # Shift + Number to toggle properties, normal numbers to change laters
+                    if handle_key_down(event, NUMBERS, self._handle_properties_toggle):
+                        continue
+                    # the panel change has to stop the chain because it's just normal vim
+                    # navigation with the ctrl held down
+                    if handle_key_down(event, VIM_KEYS, self._handle_selected_panel_change):
+                        continue
                     handle_key_down(event, pygame.K_q, self._quit)
                     handle_key_down(event, pygame.K_s, self._save)
                     handle_key_down(event, pygame.K_o, self._open)
                     handle_key_down(event, pygame.K_e, self._export)
-                    handle_key_down(event, pygame.K_h, self._hide_show_properties)
                     handle_key_down(event, pygame.K_t, self._select_tileset)
                     handle_key_down(event, pygame.K_f, self._fill_layer)
                     handle_key_down(event, NUMBERS, self._handle_change_layer)
@@ -267,10 +280,6 @@ class Editor:
                     handle_key_down(event, pygame.K_SPACE, self._place_tile)
                     handle_key_down(event, pygame.K_EQUALS, self._handle_tile_size_increase)
                     handle_key_down(event, pygame.K_MINUS, self._handle_tile_size_decrease)
-                    # the panel change has to stop the chain because it's just normal vim
-                    # navigation with the ctrl held down
-                    if handle_key_down(event, VIM_KEYS, self._handle_selected_panel_change):
-                        continue
                     handle_key_down(event, VIM_KEYS, self._handle_vim_navigation)
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
@@ -323,9 +332,6 @@ class Editor:
         self.export_map("exported.json")
         self.export_map_as_image("exported.png")
 
-    def _hide_show_properties(self, _e):
-        self.show_tile_properties = not self.show_tile_properties
-
     def _select_tileset(self, _e):
         path = choose_tileset()
         self.change_path(path)
@@ -374,6 +380,25 @@ class Editor:
     def _handle_change_layer(self, event):
         self.selected_level = get_number_key_index(event)
 
+    def _handle_properties_toggle(self, event):
+        mods = pygame.key.get_mods()
+        if mods == 0:
+            return False
+        is_ctrl = mods & pygame.KMOD_CTRL
+        is_shift = mods & pygame.KMOD_SHIFT
+        is_command = mods & pygame.KMOD_META
+
+        number = get_number_key_index(event)
+        if number == 1 and (is_ctrl or is_command):
+            self.show_tile_properties = not self.show_tile_properties
+            return True
+
+        if number == 2 and (is_ctrl or is_command):
+            self.show_borders = not self.show_borders
+            return True
+
+        return False
+
     def _handle_vim_navigation(self, event):
         mods = pygame.key.get_mods()
         if self.selected_window == "palette":
@@ -421,4 +446,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("Bye! Enjoy your day :)")
