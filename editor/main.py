@@ -1,6 +1,6 @@
 import pygame
 from pygame import Event
-from lib import load_tileset, draw_crossed_box, choose_tileset
+from lib import draw_crossed_box, choose_tileset
 import json
 from typing import Callable
 from renderer import Renderer, Layer
@@ -56,11 +56,9 @@ class Editor:
         self.selected_tile = 0
         self.selected_map_tile = (0, 0)
         self.current_rotation = 0
-        self.tiles = []
         self.blocked_tiles = set()
         self.tile_size = TILE_SIZE
         self.scale = SCALE
-        self.draw_tile_size = self.tile_size * self.scale
         self.selected_window = "palette"
 
         self.path = "assets/tileset.png"
@@ -68,7 +66,7 @@ class Editor:
         self.show_borders = True
 
         self.running = True
-        self.renderer = Renderer((MAP_WIDTH, MAP_HEIGHT), self.draw_tile_size, self.tiles)
+        self.renderer = Renderer(self.path, self.tile_size, self.scale)
 
     def save_map(self, path):
         data = {
@@ -93,8 +91,7 @@ class Editor:
         self.path = data["tileset"]
         self.tile_size = data["tile_size"]
         self.scale = data["scale"]
-        self.draw_tile_size = self.tile_size * self.scale
-        self.load()
+        self.reset_layers()
 
         self.blocked_tiles = set(data["blocked_tiles"])
         self.layers = data["layers"]
@@ -105,6 +102,10 @@ class Editor:
         if "window_size" in data:
             self.screen_width, self.screen_height = data["window_size"]
             self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.RESIZABLE)
+
+        self.renderer.set_tile_size(self.tile_size)
+        self.renderer.set_render_scale(self.scale)
+        self.renderer.set_path(self.path)
 
     def export_map(self, path):
         export_data = {
@@ -120,39 +121,40 @@ class Editor:
         print(f"Map exported to {path}")
 
     def export_map_as_image(self, path):
-        map_width_px = MAP_WIDTH * self.draw_tile_size
-        map_height_px = MAP_HEIGHT * self.draw_tile_size
+        map_width_px = MAP_WIDTH * self.renderer.render_tile_size
+        map_height_px = MAP_HEIGHT * self.renderer.render_tile_size
         image = pygame.Surface((map_width_px, map_height_px), pygame.SRCALPHA)
-        self.renderer.render(image, self.layers)
+        _map = self.renderer.create_map(MAP_WIDTH, MAP_HEIGHT)
+        _map.render(image, self.layers)
         pygame.image.save(image, path)
         print(f"Map exported as image to {path}")
 
     def draw_palette(self):
-        rows_visible = self.screen_height // self.draw_tile_size
+        rows_visible = self.screen_height // self.renderer.render_tile_size
         max_slots = rows_visible * PALETTE_COLS
         drawn_tiles = 0
-        for i, tile in enumerate(self.tiles):
-            x = (i % PALETTE_COLS) * self.draw_tile_size
-            y = (i // PALETTE_COLS) * self.draw_tile_size
+        for i, tile in enumerate(self.renderer.tiles):
+            x = (i % PALETTE_COLS) * self.renderer.render_tile_size
+            y = (i // PALETTE_COLS) * self.renderer.render_tile_size
             rotated_tile = pygame.transform.rotate(tile, -90 * self.current_rotation)
             self.screen.blit(rotated_tile, (x, y))
             drawn_tiles += 1
 
             if i in self.blocked_tiles and self.show_tile_properties:
-                draw_crossed_box(self.screen, x, y, self.draw_tile_size, (0, 150, 255))
+                draw_crossed_box(self.screen, x, y, self.renderer.render_tile_size, (0, 150, 255))
 
             if i == self.selected_tile:
                 pygame.draw.rect(
                     self.screen,
                     (255, 255, 0),
-                    (x, y, self.draw_tile_size, self.draw_tile_size),
+                    (x, y, self.renderer.render_tile_size, self.renderer.render_tile_size),
                     2
                 )
 
         for i in range(drawn_tiles, max_slots):
-            x = (i % PALETTE_COLS) * self.draw_tile_size
-            y = (i // PALETTE_COLS) * self.draw_tile_size
-            draw_crossed_box(self.screen, x, y, self.draw_tile_size, (100, 100, 100))
+            x = (i % PALETTE_COLS) * self.renderer.render_tile_size
+            y = (i // PALETTE_COLS) * self.renderer.render_tile_size
+            draw_crossed_box(self.screen, x, y, self.renderer.render_tile_size, (100, 100, 100))
 
     def is_blocked(self, x, y):
         if not self.show_tile_properties:
@@ -171,28 +173,29 @@ class Editor:
                 pygame.draw.rect(
                     self.screen,
                     (60, 60, 60),
-                    (draw_x, draw_y, self.draw_tile_size, self.draw_tile_size),
+                    (draw_x, draw_y, self.renderer.render_tile_size, self.renderer.render_tile_size),
                     1
                 )
 
             if self.show_tile_properties and self.is_blocked(x, y):
-                draw_crossed_box(self.screen, draw_x, draw_y, self.draw_tile_size, (0, 150, 255))
+                draw_crossed_box(self.screen, draw_x, draw_y, self.renderer.render_tile_size, (0, 150, 255))
 
             if self.selected_window == "map" and (x, y) == self.selected_map_tile:
                 pygame.draw.rect(
                     self.screen,
                     (255, 255, 0),
-                    (draw_x, draw_y, self.draw_tile_size, self.draw_tile_size),
+                    (draw_x, draw_y, self.renderer.render_tile_size, self.renderer.render_tile_size),
                     2
                 )
 
-        self.renderer.render(self.screen, self.layers, (PALETTE_COLS * self.draw_tile_size, 0), callback=callback)
+        _map = self.renderer.create_map(MAP_WIDTH, MAP_HEIGHT)
+        _map.render(self.screen, self.layers, (PALETTE_COLS * self.renderer.render_tile_size, 0), callback=callback)
 
     def draw_tips(self):
-        palette_width = PALETTE_COLS * self.draw_tile_size
+        palette_width = PALETTE_COLS * self.renderer.render_tile_size
         font = pygame.font.SysFont(None, 24)
 
-        map_bottom = MAP_HEIGHT * self.draw_tile_size + 10
+        map_bottom = MAP_HEIGHT * self.renderer.render_tile_size + 10
         palette_right = palette_width + 10
 
         tips = [
@@ -228,32 +231,21 @@ class Editor:
 
     def change_path(self, path):
         self.path = path
-        if self.path:
-            self.load(True)
+        self.reset_layers()
 
-    def load(self, new_map=False):
-        raw_tiles = load_tileset(self.path, self.tile_size)
+    def reset_layers(self):
+        self.layers = [[] for _ in range(self.layer_count)]
+        for _ in range(MAP_HEIGHT):
+            row = []
+            for _ in range(MAP_WIDTH):
+                row.append((0, 0))  # (tile_index, rotation)
 
-        self.tiles = [
-            pygame.transform.scale(tile, (self.draw_tile_size, self.draw_tile_size)) for tile in raw_tiles
-        ]
-
-        if new_map:
-            self.layers = [[] for _ in range(self.layer_count)]
-            for _ in range(MAP_HEIGHT):
-                row = []
-                for _ in range(MAP_WIDTH):
-                    row.append((0, 0))  # (tile_index, rotation)
-
-                for layer in self.layers:
-                    layer.append(row[:])
-
-        self.renderer.set_tiles(self.tiles)
-        self.renderer.set_tile_size(self.draw_tile_size)
+            for layer in self.layers:
+                layer.append(row[:])
 
     def run(self):
         while self.running:
-            palette_width = PALETTE_COLS * self.draw_tile_size
+            palette_width = PALETTE_COLS * self.renderer.render_tile_size
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
@@ -285,10 +277,10 @@ class Editor:
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mx, my = event.pos
                     if mx < palette_width:
-                        col = mx // self.draw_tile_size
-                        row = my // self.draw_tile_size
+                        col = mx // self.renderer.render_tile_size
+                        row = my // self.renderer.render_tile_size
                         index = row * PALETTE_COLS + col
-                        if 0 <= index < len(self.tiles):
+                        if 0 <= index < len(self.renderer.tiles):
                             if event.button == 1:
                                 self.selected_tile = index
                             elif event.button == 3:
@@ -301,8 +293,8 @@ class Editor:
             mouse_buttons = pygame.mouse.get_pressed()
 
             if mouse_buttons[0] or mouse_buttons[2]:
-                x = (mx - palette_width) // self.draw_tile_size
-                y = my // self.draw_tile_size
+                x = (mx - palette_width) // self.renderer.render_tile_size
+                y = my // self.renderer.render_tile_size
                 if 0 <= x < MAP_WIDTH and 0 <= y < MAP_HEIGHT:
                     self.layers[self.selected_level][y][x] = (self.selected_tile if mouse_buttons[0] else 0,
                                                               self.current_rotation)
@@ -354,8 +346,7 @@ class Editor:
             self.tile_size = min(64, self.tile_size + 1)
         else:
             self.scale += 1
-        self.draw_tile_size = self.tile_size * self.scale
-        self.load()
+        self.renderer.set_tile_size(self.tile_size)
 
     def _handle_tile_size_decrease(self, _e):
         mods = pygame.key.get_mods()
@@ -363,8 +354,7 @@ class Editor:
             self.tile_size = max(4, self.tile_size - 1)
         else:
             self.scale = max(1, self.scale - 1)
-        self.draw_tile_size = self.tile_size * self.scale
-        self.load()
+        self.renderer.set_render_scale(self.scale)
 
     def _handle_selected_panel_change(self, event):
         if pygame.key.get_mods() & pygame.KMOD_CTRL:
@@ -409,7 +399,7 @@ class Editor:
                 new_col = max(0, min(PALETTE_COLS - 1, col + dx))
                 new_row = max(0, row + dy)
                 new_index = new_row * PALETTE_COLS + new_col
-                if 0 <= new_index < len(self.tiles):
+                if 0 <= new_index < len(self.renderer.tiles):
                     self.selected_tile = new_index
         if self.selected_window == "map":
             if event.key in VIM_NAV_KEYS:
@@ -441,7 +431,7 @@ def main():
     pygame.display.set_caption("Tile Map Editor")
 
     editor = Editor()
-    editor.load(True)
+    editor.reset_layers()
     editor.run()
 
 

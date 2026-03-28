@@ -7,21 +7,36 @@ Layer = list[list[tuple[int, int]]]
 DrawCallback = Callable[[int, int, int, int], None]
 
 
-class Renderer:
-    def __init__(self, map_size: tuple[int, int], tile_size: int, tiles: list[Surface]):
-        self.__width = map_size[0]
-        self.__height = map_size[1]
+def load_tileset(path, tile_size):
+    image = pygame.image.load(path).convert_alpha()
+    tiles = []
+    w, h = image.get_size()
+
+    for y in range(0, h - tile_size + 1, tile_size):
+        for x in range(0, w - tile_size + 1, tile_size):
+            tile = image.subsurface((x, y, tile_size, tile_size))
+            tiles.append(tile)
+
+    empty_tile = pygame.Surface((tile_size, tile_size), pygame.SRCALPHA)
+    tiles.insert(0, empty_tile)
+
+    return tiles
+
+
+class Map:
+    def __init__(self, width: int, height: int, tile_size: int, tiles: list[Surface]):
+        self.__width = width
+        self.__height = height
         self.__tile_size = tile_size
         self.__tiles = tiles
 
-    def set_map_size(self, new_size: tuple[int, int]):
-        self.__width, self.__height = new_size
+    @property
+    def width(self) -> int:
+        return self.__width
 
-    def set_tile_size(self, new_size: int):
-        self.__tile_size = new_size
-
-    def set_tiles(self, new_tiles: list[Surface]):
-        self.__tiles = new_tiles
+    @property
+    def height(self) -> int:
+        return self.__height
 
     def render(self, surface: Surface, layers: list[Layer], offset: tuple[int, int] = (0, 0),
                callback: DrawCallback | None = None) -> None:
@@ -43,3 +58,41 @@ class Renderer:
                         callback(x, y, draw_x, draw_y)
                     except Exception as e:
                         print(f"Error in callback for tile ({x}, {y}): {e}")
+
+
+class Renderer:
+    def __init__(self, path: str, tile_size: int, render_scale: int = 1):
+        self.__path = path
+        self.__tile_size = tile_size
+        self.__render_scale = render_scale
+        self.__raw_tiles = load_tileset(path, tile_size)
+        rendered_size = tile_size * render_scale
+        self.__tiles = [pygame.transform.scale(tile, (rendered_size, rendered_size)) for tile in self.__raw_tiles]
+
+    def set_tile_size(self, new_size: int):
+        self.__tile_size = new_size
+        self.__raw_tiles = load_tileset(self.__path, new_size)
+        self.__tiles = [pygame.transform.scale(tile, (self.render_tile_size, self.render_tile_size)) for tile in
+                        self.__raw_tiles]
+
+    def set_render_scale(self, new_scale: int):
+        self.__render_scale = new_scale
+        self.__tiles = [pygame.transform.scale(tile, (self.render_tile_size, self.render_tile_size)) for tile in
+                        self.__raw_tiles]
+
+    def set_path(self, new_path: str):
+        self.__path = new_path
+        self.__raw_tiles = load_tileset(new_path, self.__tile_size)
+        self.__tiles = [pygame.transform.scale(tile, (self.render_tile_size, self.render_tile_size)) for tile in
+                        self.__raw_tiles]
+
+    @property
+    def tiles(self) -> list[Surface]:
+        return self.__tiles
+
+    @property
+    def render_tile_size(self) -> int:
+        return self.__tile_size * self.__render_scale
+
+    def create_map(self, width: int, height: int) -> Map:
+        return Map(width, height, self.render_tile_size, self.__tiles)
