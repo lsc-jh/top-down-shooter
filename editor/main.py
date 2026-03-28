@@ -55,8 +55,12 @@ class Editor:
         self.selected_level = 0
         self.selected_tile = 0
         self.selected_map_tile = (0, 0)
+        self.selected_marker = 1
         self.current_rotation = 0
-        self.blocked_tiles = set()
+        self.tile_properties = {
+            1: set(),
+            2: set(),
+        }
         self.tile_size = TILE_SIZE
         self.scale = SCALE
         self.selected_window = "palette"
@@ -74,7 +78,7 @@ class Editor:
             "tileset": self.path,
             "tile_size": self.tile_size,
             "scale": self.scale,
-            "blocked_tiles": list(self.blocked_tiles),
+            "tile_properties": {str(k): list(v) for k, v in self.tile_properties.items()},
             "window_size": [self.screen_width, self.screen_height],
             "layers": self.layers,
         }
@@ -92,9 +96,10 @@ class Editor:
         self.tile_size = data["tile_size"]
         self.scale = data["scale"]
         self.reset_layers()
-
-        self.blocked_tiles = set(data["blocked_tiles"])
         self.layers = data["layers"]
+        self.tile_properties = data["tile_properties"]
+        self.tile_properties = {int(k): set(v) for k, v in self.tile_properties.items()}
+
         if len(self.layers) < self.layer_count:
             for _ in range(self.layer_count - len(self.layers)):
                 self.layers.append([[(0, 0) for _ in range(MAP_WIDTH)] for _ in range(MAP_HEIGHT)])
@@ -111,12 +116,14 @@ class Editor:
         export_data = {
             "tileset": self.path,
             "tile_size": self.tile_size,
-            "blocked_tiles": list(self.blocked_tiles),
+            "blocked_tiles": list(self.tile_properties.get(1, [])),
+            "pathfinding_tiles": list(self.tile_properties.get(2, [])),
             "layers": self.layers,
+            "bottom_grid": [[self.layers[0][y][x][0] for x in range(MAP_WIDTH)] for y in range(MAP_HEIGHT)],
         }
 
         with open(path, "w") as f:
-            json.dump(export_data, f)
+            json.dump(export_data, f, indent=2)
 
         print(f"Map exported to {path}")
 
@@ -140,8 +147,11 @@ class Editor:
             self.screen.blit(rotated_tile, (x, y))
             drawn_tiles += 1
 
-            if i in self.blocked_tiles and self.show_tile_properties:
-                draw_crossed_box(self.screen, x, y, self.renderer.render_tile_size, (0, 150, 255))
+            if self.show_tile_properties:
+                if i in self.tile_properties.get(1, set()):
+                    draw_crossed_box(self.screen, x, y, self.renderer.render_tile_size, (0, 150, 255))
+                if i in self.tile_properties.get(2, set()):
+                    draw_crossed_box(self.screen, x, y, self.renderer.render_tile_size, (255, 0, 150))
 
             if i == self.selected_tile:
                 pygame.draw.rect(
@@ -156,13 +166,13 @@ class Editor:
             y = (i // PALETTE_COLS) * self.renderer.render_tile_size
             draw_crossed_box(self.screen, x, y, self.renderer.render_tile_size, (100, 100, 100))
 
-    def is_blocked(self, x, y):
+    def is_marked(self, x, y, marker: int):
         if not self.show_tile_properties:
             return False
 
         for layer in self.layers:
             index = layer[y][x][0]
-            if index in self.blocked_tiles:
+            if index in self.tile_properties.get(marker, set()):
                 return True
 
         return False
@@ -177,8 +187,10 @@ class Editor:
                     1
                 )
 
-            if self.show_tile_properties and self.is_blocked(x, y):
+            if self.show_tile_properties and self.is_marked(x, y, 1):
                 draw_crossed_box(self.screen, draw_x, draw_y, self.renderer.render_tile_size, (0, 150, 255))
+            if self.show_tile_properties and self.is_marked(x, y, 2):
+                draw_crossed_box(self.screen, draw_x, draw_y, self.renderer.render_tile_size, (255, 0, 150))
 
             if self.selected_window == "map" and (x, y) == self.selected_map_tile:
                 pygame.draw.rect(
@@ -284,10 +296,10 @@ class Editor:
                             if event.button == 1:
                                 self.selected_tile = index
                             elif event.button == 3:
-                                if index in self.blocked_tiles:
-                                    self.blocked_tiles.remove(index)
+                                if index in self.tile_properties.get(self.selected_marker, set()):
+                                    self.tile_properties[self.selected_marker].remove(index)
                                 else:
-                                    self.blocked_tiles.add(index)
+                                    self.tile_properties[self.selected_marker].add(index)
 
             mx, my = pygame.mouse.get_pos()
             mouse_buttons = pygame.mouse.get_pressed()
@@ -386,6 +398,9 @@ class Editor:
         if number == 2 and (is_ctrl or is_command):
             self.show_borders = not self.show_borders
             return True
+
+        if number in [1, 2] and is_shift:
+            self.selected_marker = number
 
         return False
 
