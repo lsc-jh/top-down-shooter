@@ -71,6 +71,7 @@ class Editor:
 
         self.running = True
         self.renderer = Renderer(self.path, self.tile_size, self.scale)
+        self.renderer.load()
 
     def save_map(self, path):
         data = {
