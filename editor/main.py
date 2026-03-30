@@ -4,6 +4,7 @@ from lib import draw_crossed_box, choose_tileset
 import json
 from typing import Callable
 from renderer import Renderer, Layer
+from tileset import Tileset
 
 TILE_SIZE = 8
 SCALE = 4
@@ -70,8 +71,9 @@ class Editor:
         self.show_borders = True
 
         self.running = True
-        self.renderer = Renderer(self.path, self.tile_size, self.scale)
-        self.renderer.load()
+        self.tileset = Tileset(self.path, self.tile_size)
+        self.tileset.load()
+        self.renderer = Renderer(self.tileset, self.scale)
 
     def save_map(self, path):
         data = {
@@ -109,9 +111,9 @@ class Editor:
             self.screen_width, self.screen_height = data["window_size"]
             self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.RESIZABLE)
 
-        self.renderer.set_tile_size(self.tile_size)
+        self.tileset.set_path(self.path)
+        self.tileset.set_tile_size(self.tile_size)
         self.renderer.set_render_scale(self.scale)
-        self.renderer.set_path(self.path)
 
     def export_map(self, path):
         export_data = {
@@ -359,7 +361,7 @@ class Editor:
             self.tile_size = min(64, self.tile_size + 1)
         else:
             self.scale += 1
-        self.renderer.set_tile_size(self.tile_size)
+        self.tileset.set_tile_size(self.tile_size)
 
     def _handle_tile_size_decrease(self, _e):
         mods = pygame.key.get_mods()
