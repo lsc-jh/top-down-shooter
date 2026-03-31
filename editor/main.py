@@ -3,7 +3,7 @@ from pygame import Event
 from lib import draw_crossed_box, choose_tileset
 import json
 from typing import Callable
-from rendering import Renderer, Tileset, Map
+from lscjh_rendering import Tileset, Renderer, Map
 
 TILE_SIZE = 8
 SCALE = 4
