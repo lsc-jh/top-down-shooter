@@ -1,48 +1,7 @@
-import pygame
-from pygame import Event
-from lib import draw_crossed_box, choose_tileset
+from lib import draw_crossed_box, choose_tileset, handle_key_down, get_number_key_index
 import json
-from typing import Callable
+from constants import *
 from lscjh_rendering import Tileset, Renderer, Map
-
-TILE_SIZE = 8
-SCALE = 4
-
-MAP_WIDTH = 20
-MAP_HEIGHT = 15
-
-PALETTE_COLS = 5
-SCREEN_WIDTH = 1400
-SCREEN_HEIGHT = 1000
-
-VIM_KEYS = [pygame.K_h, pygame.K_j, pygame.K_k, pygame.K_l]
-
-NUMBERS = [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4]
-
-VIM_NAV_KEYS = {
-    pygame.K_h: (-1, 0),
-    pygame.K_j: (0, 1),
-    pygame.K_k: (0, -1),
-    pygame.K_l: (1, 0)
-}
-
-
-def get_number_key_index(event: Event):
-    if event.key in NUMBERS:
-        return NUMBERS.index(event.key) + 1
-    return 0
-
-
-def handle_key_down(event: Event, keys: int | list[int], callback: Callable[[Event], bool | None]):
-    if isinstance(keys, int):
-        if event.key == keys:
-            return callback(event)
-        return None
-
-    if event.key in keys:
-        return callback(event)
-
-    return None
 
 
 class Editor:

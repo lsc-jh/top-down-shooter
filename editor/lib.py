@@ -1,9 +1,11 @@
 import pygame
+from pygame import Event
 import subprocess
 import json
 import platform
 import os
 import sys
+from constants import NUMBERS
 
 
 def draw_crossed_box(screen, x, y, size, color):
@@ -51,3 +53,21 @@ def choose_tileset():
         except json.JSONDecodeError:
             print("Failed to decode JSON from file picker:", raw_json)
             return None
+
+
+def get_number_key_index(event: Event):
+    if event.key in NUMBERS:
+        return NUMBERS.index(event.key) + 1
+    return 0
+
+
+def handle_key_down(event: Event, keys: int | list[int], callback: Callable[[Event], bool | None]):
+    if isinstance(keys, int):
+        if event.key == keys:
+            return callback(event)
+        return None
+
+    if event.key in keys:
+        return callback(event)
+
+    return None
