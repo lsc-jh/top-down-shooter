@@ -1,7 +1,13 @@
-from lib import draw_crossed_box, choose_tileset, handle_key_down, get_number_key_index
+import os.path
+
+from lib import draw_crossed_box, choose_tileset, handle_key_down, get_number_key_index, get_absolute_path, \
+    get_home_directory
 import json
 from constants import *
 from lscjh_rendering import Tileset, Renderer, Map
+
+SAVE_FILE_NAME = "tileset-editor-save.json"
+EXPORT_FILE_NAME = "tileset-editor-export"
 
 
 class Editor:
@@ -18,7 +24,7 @@ class Editor:
         self.scale = SCALE
         self.selected_window = "palette"
 
-        self.path = "assets/tileset.png"
+        self.path = get_absolute_path("assets/tileset.png")
         self.show_tile_properties = True
         self.show_borders = True
 
@@ -248,18 +254,21 @@ class Editor:
         self.running = False
 
     def _save(self, _e):
-        self.save_map("saved.json")
+        path = os.path.join(get_home_directory(), SAVE_FILE_NAME)
+        self.save_map(path)
 
     def _open(self, _e):
         self.selected_map_tile = (0, 0)
         self.current_rotation = 0
         self.selected_level = 0
         self.selected_tile = 0
-        self.load_map("saved.json")
+        path = os.path.join(get_home_directory(), SAVE_FILE_NAME)
+        self.load_map(path)
 
     def _export(self, _e):
-        self.export_map("exported.json")
-        self.export_map_as_image("exported.png")
+        path = os.path.join(get_home_directory(), EXPORT_FILE_NAME)
+        self.export_map(f"{path}.json")
+        self.export_map_as_image(f"{path}.png")
 
     def _select_tileset(self, _e):
         path = choose_tileset()

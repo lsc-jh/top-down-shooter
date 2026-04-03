@@ -8,6 +8,21 @@ import sys
 from constants import NUMBERS
 
 
+def get_home_directory():
+    if platform.system() == "Windows":
+        return os.path.expandvars("%HOMEPATH%")
+    else:
+        return os.path.expanduser("~")
+
+
+def get_absolute_path(relative_path):
+    if getattr(sys, "frozen", False):
+        base = sys._MEIPASS
+    else:
+        base = os.path.dirname(__file__)
+    return os.path.join(base, relative_path)
+
+
 def draw_crossed_box(screen, x, y, size, color):
     pygame.draw.rect(screen, color, (x, y, size, size), 1)
     pygame.draw.line(screen, color, (x, y), (x + size, y + size), 1)
