@@ -1,5 +1,5 @@
 import os.path
-
+import warnings
 from lib import draw_crossed_box, choose_tileset, handle_key_down, get_number_key_index, get_absolute_path, \
     get_home_directory
 import json
@@ -8,6 +8,8 @@ from lscjh_rendering import Tileset, Renderer, Map
 
 SAVE_FILE_NAME = "tileset-editor-save.json"
 EXPORT_FILE_NAME = "tileset-editor-export"
+
+IGNORE_MESSAGE = "Requested window was forcibly resized by the OS."
 
 
 class Editor:
@@ -385,6 +387,9 @@ def main():
 
 if __name__ == "__main__":
     try:
-        main()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=RuntimeWarning, message=IGNORE_MESSAGE)
+            main()
+
     except KeyboardInterrupt:
         print("Bye! Enjoy your day :)")
