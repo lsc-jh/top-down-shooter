@@ -4,7 +4,7 @@ from lib import draw_crossed_box, choose_tileset, handle_key_down, get_number_ke
     get_home_directory
 import json
 from constants import *
-from lscjh_rendering import Tileset, Renderer, Map
+from tileforge import Map, Tileset, Renderer
 
 SAVE_FILE_NAME = "tileset-editor-save.json"
 EXPORT_FILE_NAME = "tileset-editor-export"
@@ -33,7 +33,7 @@ class Editor:
         self.running = True
         self.tileset = Tileset(self.path, self.tile_size)
         self.tileset.load()
-        self.map = Map(MAP_WIDTH, MAP_HEIGHT, self.tileset)
+        self.map = Map(MAP_WIDTH, MAP_HEIGHT)
         self.map.set_layer_count(4)
         self.renderer = Renderer(self.tileset, self.map, self.scale)
 
@@ -134,9 +134,9 @@ class Editor:
                     1
                 )
 
-            if self.show_tile_properties and self.map.tile_has_property(x, y, 1):
+            if self.show_tile_properties and self.map.cell_has_property(self.tileset, (x, y), 1):
                 draw_crossed_box(self.screen, draw_x, draw_y, self.renderer.render_tile_size, (0, 150, 255))
-            if self.show_tile_properties and self.map.tile_has_property(x, y, 2):
+            if self.show_tile_properties and self.map.cell_has_property(self.tileset, (x, y), 2):
                 draw_crossed_box(self.screen, draw_x, draw_y, self.renderer.render_tile_size, (255, 0, 150))
 
             if self.selected_window == "map" and (x, y) == self.selected_map_tile:
