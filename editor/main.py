@@ -147,8 +147,28 @@ class Editor:
                     2
                 )
 
-        offset = (PALETTE_COLS * self.renderer.render_tile_size, 0)
+        offset = (PALETTE_COLS * self.renderer.render_tile_size + 10, 0)
         self.renderer.render(self.screen, offset, callback=callback)
+
+    def draw_tile_preview(self, tile_index):
+        left_of_map = PALETTE_COLS * self.renderer.render_tile_size + MAP_WIDTH * self.renderer.render_tile_size + 20
+        if left_of_map + self.renderer.render_tile_size * self.scale > self.screen_width:
+            return
+        x = left_of_map
+        y = 10
+        tile = self.renderer.tiles[tile_index]
+        scaled_size = self.renderer.render_tile_size * self.scale
+        scaled_tile = pygame.transform.scale(tile, (scaled_size, scaled_size))
+        rotated_tile = pygame.transform.rotate(scaled_tile, -90 * self.current_rotation)
+        self.screen.blit(rotated_tile, (x, y))
+        font = pygame.font.SysFont(None, 24)
+        props = []
+        if self.tileset.has_property(tile_index, 1):
+            props.append("Blocked")
+        if self.tileset.has_property(tile_index, 2):
+            props.append("Pathfinding")
+        text = font.render(", ".join(props), True, (255, 255, 255))
+        self.screen.blit(text, (x, y + scaled_size + 5))
 
     def draw_tips(self):
         palette_width = PALETTE_COLS * self.renderer.render_tile_size
@@ -248,6 +268,7 @@ class Editor:
 
             self.draw_palette()
             self.draw_map()
+            self.draw_tile_preview(self.selected_tile)
             self.draw_tips()
 
             pygame.display.flip()
