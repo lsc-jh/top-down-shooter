@@ -241,6 +241,7 @@ class Editor:
                     handle_key_down(event, pygame.K_EQUALS, self._handle_tile_size_increase)
                     handle_key_down(event, pygame.K_MINUS, self._handle_tile_size_decrease)
                     handle_key_down(event, VIM_KEYS, self._handle_vim_navigation)
+                    handle_key_down(event, ARROW_KEYS, self._handle_vim_navigation)
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mx, my = event.pos
@@ -364,8 +365,8 @@ class Editor:
     def _handle_vim_navigation(self, event):
         mods = pygame.key.get_mods()
         if self.selected_window == "palette":
-            if event.key in VIM_NAV_KEYS:
-                dx, dy = VIM_NAV_KEYS[event.key]
+            if event.key in VIM_NAV_KEYS or event.key in ARROW_NAV_KEYS:
+                dx, dy = VIM_NAV_KEYS[event.key] if event.key in VIM_NAV_KEYS else ARROW_NAV_KEYS[event.key]
                 col = self.selected_tile % PALETTE_COLS
                 row = self.selected_tile // PALETTE_COLS
                 new_col = max(0, min(PALETTE_COLS - 1, col + dx))
@@ -374,8 +375,8 @@ class Editor:
                 if 0 <= new_index < len(self.renderer.tiles):
                     self.selected_tile = new_index
         if self.selected_window == "map":
-            if event.key in VIM_NAV_KEYS:
-                dx, dy = VIM_NAV_KEYS[event.key]
+            if event.key in VIM_NAV_KEYS or event.key in ARROW_NAV_KEYS:
+                dx, dy = VIM_NAV_KEYS[event.key] if event.key in VIM_NAV_KEYS else ARROW_NAV_KEYS[event.key]
                 x, y = self.selected_map_tile
                 new_x = max(0, min(MAP_WIDTH - 1, x + dx))
                 new_y = max(0, min(MAP_HEIGHT - 1, y + dy))
