@@ -39,11 +39,11 @@ jobs:
       - name: Build with PyInstaller
         run: |
           cd editor/
-          pyinstaller --onefile main.py
+          pyinstaller --onefile main.py --name editor-${{ matrix.os }}${{ matrix.ext }}
 
       - name: Rename binary
         run: |
-          mv dist/main${{ matrix.ext }} editor-${{ matrix.os }}${{ matrix.ext }}
+          mv dist/editor-${{ matrix.os }}${{ matrix.ext }} editor-${{ matrix.os }}${{ matrix.ext }}
         shell: bash
 
       - name: Make binary executable (macOS)
