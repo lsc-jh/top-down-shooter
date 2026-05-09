@@ -22,27 +22,24 @@ class Editor:
         self.selected_map_tile: tuple[int, int] = (0, 0)
         self.selected_marker = 1
         self.current_rotation = 0
-        self.tile_size = TILE_SIZE
-        self.scale = SCALE
         self.selected_window = "palette"
 
-        self.path = get_absolute_path("assets/tileset.png")
         self.show_tile_properties = True
         self.show_borders = True
 
         self.running = True
-        self.tileset = Tileset(self.path, self.tile_size)
+        self.tileset = Tileset(get_absolute_path("assets/tileset.png"), TILE_SIZE)
         self.tileset.load()
         self.map = Map(MAP_WIDTH, MAP_HEIGHT)
         self.map.set_layer_count(4)
-        self.renderer = Renderer(self.tileset, self.map, self.scale)
+        self.renderer = Renderer(self.tileset, self.map, SCALE)
 
     def save_map(self, path):
         data = {
             "version": 1,
-            "tileset": self.path,
-            "tile_size": self.tile_size,
-            "scale": self.scale,
+            "tileset": self.tileset.path,
+            "tile_size": self.tileset.tile_size,
+            "scale": self.renderer.scale,
             "tile_properties": self.tileset.serialize_properties(),
             "window_size": [self.screen_width, self.screen_height],
             "layers": self.map.layers,
@@ -57,9 +54,7 @@ class Editor:
         with open(path, "r") as f:
             data = json.load(f)
 
-        self.path = data["tileset"]
-        self.tile_size = data["tile_size"]
-        self.scale = data["scale"]
+        self.tileset.set_tile_size(data["tile_size"])
         self.map.set_layers(data["layers"])
         self.tileset.deserialize_properties(data.get("tile_properties", {}))
 
@@ -67,14 +62,13 @@ class Editor:
             self.screen_width, self.screen_height = data["window_size"]
             self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.RESIZABLE)
 
-        self.tileset.set_path(self.path)
-        self.tileset.set_tile_size(self.tile_size)
-        self.renderer.set_render_scale(self.scale)
+        self.tileset.set_path(data["tileset"])
+        self.renderer.set_render_scale(data.get("scale", SCALE))
 
     def export_map(self, path):
         export_data = {
-            "tileset": self.path,
-            "tile_size": self.tile_size,
+            "tileset": self.tileset.path,
+            "tile_size": self.tileset.tile_size,
             "blocked_tiles": list(self.tileset.get_properties(1)),
             "pathfinding_tiles": list(self.tileset.get_properties(2)),
             "layers": self.map.layers,
@@ -152,12 +146,12 @@ class Editor:
 
     def draw_tile_preview(self, tile_index):
         left_of_map = PALETTE_COLS * self.renderer.render_tile_size + MAP_WIDTH * self.renderer.render_tile_size + 20
-        if left_of_map + self.renderer.render_tile_size * self.scale > self.screen_width:
+        if left_of_map + self.renderer.render_tile_size * self.renderer.scale > self.screen_width:
             return
         x = left_of_map
         y = 10
         tile = self.renderer.tiles[tile_index]
-        scaled_size = self.renderer.render_tile_size * self.scale
+        scaled_size = self.renderer.render_tile_size * self.renderer.scale
         scaled_tile = pygame.transform.scale(tile, (scaled_size, scaled_size))
         rotated_tile = pygame.transform.rotate(scaled_tile, -90 * self.current_rotation)
         self.screen.blit(rotated_tile, (x, y))
@@ -209,7 +203,7 @@ class Editor:
                 self.screen.blit(text, (palette_right, map_bottom + i * 30))
 
     def change_path(self, path):
-        self.path = path
+        self.tileset.set_path(path)
 
     def run(self):
         while self.running:
@@ -312,19 +306,17 @@ class Editor:
 
     def _handle_tile_size_increase(self, _e):
         mods = pygame.key.get_mods()
-        if mods & pygame.KMOD_CTRL:
-            self.tile_size = min(64, self.tile_size + 1)
+        if mods & pygame.KMOD_SHIFT:
+            self.tileset.set_tile_size(min(64, self.tileset.tile_size + 1))
         else:
-            self.scale += 1
-        self.tileset.set_tile_size(self.tile_size)
+            self.renderer.set_render_scale(self.renderer.scale + 1)
 
     def _handle_tile_size_decrease(self, _e):
         mods = pygame.key.get_mods()
         if mods & pygame.KMOD_SHIFT:
-            self.tile_size = max(4, self.tile_size - 1)
+            self.tileset.set_tile_size(max(4, self.tileset.tile_size - 1))
         else:
-            self.scale = max(1, self.scale - 1)
-        self.renderer.set_render_scale(self.scale)
+            self.renderer.set_render_scale(max(1, self.renderer.scale - 1))
 
     def _handle_selected_panel_change(self, event):
         if pygame.key.get_mods() & pygame.KMOD_CTRL:
