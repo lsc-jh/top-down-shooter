@@ -29,10 +29,12 @@ class Editor:
 
         self.running = True
         self.tileset = Tileset(get_absolute_path("assets/tileset.png"), TILE_SIZE)
-        self.tileset.load()
         self.map = Map(MAP_WIDTH, MAP_HEIGHT)
         self.map.set_layer_count(4)
         self.renderer = Renderer(self.tileset, self.map, SCALE)
+        self.map_camera_x = 0
+        self.map_camera_y = 0
+        self.tileset.load()
 
     def save_map(self, path):
         data = {
@@ -118,7 +120,40 @@ class Editor:
             y = (i // PALETTE_COLS) * self.renderer.render_tile_size
             draw_crossed_box(self.screen, x, y, self.renderer.render_tile_size, (100, 100, 100))
 
+    def get_map_screen_offset(self) -> tuple[int, int]:
+        return (
+            PALETTE_COLS * self.renderer.render_tile_size + 10 - self.map_camera_x,
+            -self.map_camera_y,
+        )
+
+    def get_map_origin_screen_x(self) -> int:
+        return PALETTE_COLS * self.renderer.render_tile_size + 10
+
+    def get_visible_map_area(self) -> pygame.Rect:
+        return pygame.Rect(
+            self.get_map_origin_screen_x(),
+            0,
+            self.screen_width - self.get_map_origin_screen_x(),
+            self.screen_height,
+        )
+
+    def clamp_camera(self):
+        map_width_px = MAP_WIDTH * self.renderer.render_tile_size
+        map_height_px = MAP_HEIGHT * self.renderer.render_tile_size
+
+        visible = self.get_visible_map_area()
+
+        max_x = max(0, map_width_px - visible.width)
+        max_y = max(0, map_height_px - visible.height)
+
+        self.map_camera_x = max(0, min(self.map_camera_x, max_x))
+        self.map_camera_y = max(0, min(self.map_camera_y, max_y))
+
     def draw_map(self):
+        visible_map_area = self.get_visible_map_area()
+        old_clip = self.screen.get_clip()
+        self.screen.set_clip(visible_map_area)
+
         def callback(x, y, draw_x, draw_y):
             if self.show_borders:
                 pygame.draw.rect(
@@ -129,9 +164,22 @@ class Editor:
                 )
 
             if self.show_tile_properties and self.map.cell_has_property(self.tileset, (x, y), 1):
-                draw_crossed_box(self.screen, draw_x, draw_y, self.renderer.render_tile_size, (0, 150, 255))
+                draw_crossed_box(
+                    self.screen,
+                    draw_x,
+                    draw_y,
+                    self.renderer.render_tile_size,
+                    (0, 150, 255)
+                )
+
             if self.show_tile_properties and self.map.cell_has_property(self.tileset, (x, y), 2):
-                draw_crossed_box(self.screen, draw_x, draw_y, self.renderer.render_tile_size, (255, 0, 150))
+                draw_crossed_box(
+                    self.screen,
+                    draw_x,
+                    draw_y,
+                    self.renderer.render_tile_size,
+                    (255, 0, 150)
+                )
 
             if self.selected_window == "map" and (x, y) == self.selected_map_tile:
                 pygame.draw.rect(
@@ -141,8 +189,10 @@ class Editor:
                     2
                 )
 
-        offset = (PALETTE_COLS * self.renderer.render_tile_size + 10, 0)
+        offset = self.get_map_screen_offset()
         self.renderer.render(self.screen, offset, callback=callback)
+
+        self.screen.set_clip(old_clip)
 
     def draw_tile_preview(self, tile_index):
         left_of_map = PALETTE_COLS * self.renderer.render_tile_size + MAP_WIDTH * self.renderer.render_tile_size + 20
@@ -239,10 +289,28 @@ class Editor:
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mx, my = event.pos
+
+                    if event.button == 4:
+                        if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                            self.map_camera_x -= self.renderer.render_tile_size
+                        else:
+                            self.map_camera_y -= self.renderer.render_tile_size
+                        self.clamp_camera()
+                        continue
+
+                    if event.button == 5:
+                        if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                            self.map_camera_x += self.renderer.render_tile_size
+                        else:
+                            self.map_camera_y += self.renderer.render_tile_size
+                        self.clamp_camera()
+                        continue
+
                     if mx < palette_width:
                         col = mx // self.renderer.render_tile_size
                         row = my // self.renderer.render_tile_size
                         index = row * PALETTE_COLS + col
+
                         if 0 <= index < len(self.renderer.tiles):
                             if event.button == 1:
                                 self.selected_tile = index
@@ -253,11 +321,16 @@ class Editor:
             mouse_buttons = pygame.mouse.get_pressed()
 
             if mouse_buttons[0] or mouse_buttons[2]:
-                x = (mx - palette_width) // self.renderer.render_tile_size
-                y = my // self.renderer.render_tile_size
+                map_origin_x = self.get_map_origin_screen_x()
+
+                x = (mx - map_origin_x + self.map_camera_x) // self.renderer.render_tile_size
+                y = (my + self.map_camera_y) // self.renderer.render_tile_size
+
                 if 0 <= x < MAP_WIDTH and 0 <= y < MAP_HEIGHT:
-                    self.map[self.selected_level, x, y] = (self.selected_tile if mouse_buttons[0] else 0,
-                                                           self.current_rotation)
+                    self.map[self.selected_level, x, y] = (
+                        self.selected_tile if mouse_buttons[0] else 0,
+                        self.current_rotation
+                    )
 
             self.screen.fill((30, 30, 30))
 
@@ -308,15 +381,19 @@ class Editor:
         mods = pygame.key.get_mods()
         if mods & pygame.KMOD_SHIFT:
             self.tileset.set_tile_size(min(64, self.tileset.tile_size + 1))
+            self.renderer.set_render_scale(self.renderer.scale)
         else:
             self.renderer.set_render_scale(self.renderer.scale + 1)
+        self.clamp_camera()
 
     def _handle_tile_size_decrease(self, _e):
         mods = pygame.key.get_mods()
         if mods & pygame.KMOD_SHIFT:
             self.tileset.set_tile_size(max(4, self.tileset.tile_size - 1))
+            self.renderer.set_render_scale(self.renderer.scale)
         else:
             self.renderer.set_render_scale(max(1, self.renderer.scale - 1))
+        self.clamp_camera()
 
     def _handle_selected_panel_change(self, event):
         if pygame.key.get_mods() & pygame.KMOD_CTRL:
