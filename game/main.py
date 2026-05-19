@@ -1,20 +1,12 @@
 import json
-import math
-
+import random
 import pygame
+from lib import world_to_tile, clamp
 from tileforge import Renderer, Map, Tileset, get_from_home
-
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
-
-PLAYER_SPEED = 3
-BULLET_SPEED = 8
-BULLET_SIZE = 6
-SHOOT_COOLDOWN = 200
-
-
-def clamp(value, min_value, max_value):
-    return max(min_value, min(value, max_value))
+from constants import *
+from enemy import Enemy
+from player import Player
+from camera import Camera
 
 
 class GameMap:
@@ -75,143 +67,6 @@ class GameMap:
         return self.map.cell_has_property(self.tileset, (tile_x, tile_y), 1)
 
 
-class Camera:
-    def __init__(self, screen_width, screen_height, map_width, map_height):
-        self.x = 0
-        self.y = 0
-
-        self.screen_width = screen_width
-        self.screen_height = screen_height
-        self.map_width = map_width
-        self.map_height = map_height
-
-    def follow(self, target):
-        wanted_x = target.center_x - self.screen_width // 2
-        wanted_y = target.center_y - self.screen_height // 2
-
-        if self.map_width > self.screen_width:
-            self.x = clamp(wanted_x, 0, self.map_width - self.screen_width)
-        else:
-            self.x = -(self.screen_width - self.map_width) // 2
-
-        if self.map_height > self.screen_height:
-            self.y = clamp(wanted_y, 0, self.map_height - self.screen_height)
-        else:
-            self.y = -(self.screen_height - self.map_height) // 2
-
-    def screen_to_world(self, screen_x, screen_y):
-        return screen_x + self.x, screen_y + self.y
-
-
-class Player:
-    def __init__(self, x, y, size):
-        self.x = x
-        self.y = y
-        self.size = size
-
-    @property
-    def center_x(self):
-        return self.x + self.size / 2
-
-    @property
-    def center_y(self):
-        return self.y + self.size / 2
-
-    def move(self, dx, dy, game_map):
-        self.try_move(dx, 0, game_map)
-        self.try_move(0, dy, game_map)
-
-    def try_move(self, dx, dy, game_map):
-        new_x = self.x + dx
-        new_y = self.y + dy
-
-        if self.collides(new_x, new_y, game_map):
-            return
-
-        self.x = new_x
-        self.y = new_y
-
-    def collides(self, x, y, game_map):
-        tile_size = game_map.tile_size
-
-        corners = [
-            (x, y),
-            (x + self.size - 1, y),
-            (x, y + self.size - 1),
-            (x + self.size - 1, y + self.size - 1),
-        ]
-
-        for corner_x, corner_y in corners:
-            tile_x = int(corner_x // tile_size)
-            tile_y = int(corner_y // tile_size)
-
-            if game_map.is_blocked(tile_x, tile_y):
-                return True
-
-        return False
-
-    def shoot(self, target_x, target_y):
-        dx = target_x - self.center_x
-        dy = target_y - self.center_y
-
-        distance = math.hypot(dx, dy)
-
-        if distance == 0:
-            return None
-
-        dx /= distance
-        dy /= distance
-
-        return Bullet(
-            self.center_x,
-            self.center_y,
-            dx,
-            dy,
-        )
-
-    def draw(self, screen, camera):
-        pygame.draw.rect(
-            screen,
-            (255, 50, 50),
-            (
-                self.x - camera.x,
-                self.y - camera.y,
-                self.size,
-                self.size,
-            ),
-        )
-
-
-class Bullet:
-    def __init__(self, x, y, direction_x, direction_y):
-        self.x = x
-        self.y = y
-        self.direction_x = direction_x
-        self.direction_y = direction_y
-        self.alive = True
-
-    def update(self, game_map):
-        self.x += self.direction_x * BULLET_SPEED
-        self.y += self.direction_y * BULLET_SPEED
-
-        tile_x = int(self.x // game_map.tile_size)
-        tile_y = int(self.y // game_map.tile_size)
-
-        if game_map.is_blocked(tile_x, tile_y):
-            self.alive = False
-
-    def draw(self, screen, camera):
-        pygame.draw.circle(
-            screen,
-            (255, 230, 100),
-            (
-                int(self.x - camera.x),
-                int(self.y - camera.y),
-            ),
-            BULLET_SIZE,
-        )
-
-
 def get_player_movement():
     keys = pygame.key.get_pressed()
 
@@ -228,6 +83,60 @@ def get_player_movement():
         dx += PLAYER_SPEED
 
     return dx, dy
+
+
+def spawn_enemy(game_map, camera):
+    for _ in range(50):
+        side = random.choice(["top", "bottom", "left", "right"])
+
+        if side == "top":
+            x = random.uniform(
+                camera.x - ENEMY_SPAWN_PADDING,
+                camera.x + camera.screen_width + ENEMY_SPAWN_PADDING,
+            )
+            y = camera.y - ENEMY_SPAWN_PADDING
+
+        elif side == "bottom":
+            x = random.uniform(
+                camera.x - ENEMY_SPAWN_PADDING,
+                camera.x + camera.screen_width + ENEMY_SPAWN_PADDING,
+            )
+            y = camera.y + camera.screen_height + ENEMY_SPAWN_PADDING
+
+        elif side == "left":
+            x = camera.x - ENEMY_SPAWN_PADDING
+            y = random.uniform(
+                camera.y - ENEMY_SPAWN_PADDING,
+                camera.y + camera.screen_height + ENEMY_SPAWN_PADDING,
+            )
+
+        else:
+            x = camera.x + camera.screen_width + ENEMY_SPAWN_PADDING
+            y = random.uniform(
+                camera.y - ENEMY_SPAWN_PADDING,
+                camera.y + camera.screen_height + ENEMY_SPAWN_PADDING,
+            )
+
+        x = clamp(x, 0, game_map.width_px - ENEMY_SIZE)
+        y = clamp(y, 0, game_map.height_px - ENEMY_SIZE)
+
+        tile_x, tile_y = world_to_tile(x, y, game_map.tile_size)
+
+        if not game_map.is_blocked(tile_x, tile_y):
+            return Enemy(
+                x - ENEMY_SIZE / 2,
+                y - ENEMY_SIZE / 2,
+                game_map,
+            )
+
+    return None
+
+
+def get_mouse_shot(player, camera):
+    mouse_x, mouse_y = pygame.mouse.get_pos()
+    target_x, target_y = camera.screen_to_world(mouse_x, mouse_y)
+
+    return player.shoot(target_x, target_y)
 
 
 def main():
@@ -259,7 +168,10 @@ def main():
     )
 
     bullets = []
+    enemies = []
+
     last_shot_time = 0
+    last_enemy_spawn_time = 0
 
     running = True
 
@@ -269,36 +181,65 @@ def main():
 
         current_time = pygame.time.get_ticks()
 
+        def shoot():
+            nonlocal last_shot_time, current_time
+
+            if current_time - last_shot_time >= SHOOT_COOLDOWN:
+                b = get_mouse_shot(player, camera)
+
+                if b is not None:
+                    bullets.append(b)
+                    last_shot_time = current_time
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    if current_time - last_shot_time >= SHOOT_COOLDOWN:
-                        mouse_x, mouse_y = pygame.mouse.get_pos()
-                        target_x, target_y = camera.screen_to_world(mouse_x, mouse_y)
-
-                        bullet = player.shoot(target_x, target_y)
-
-                        if bullet is not None:
-                            bullets.append(bullet)
-                            last_shot_time = current_time
+                    shoot()
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                shoot()
 
         dx, dy = get_player_movement()
         player.move(dx, dy, game_map)
 
+        camera.follow(player)
+
+        if current_time - last_enemy_spawn_time >= ENEMY_SPAWN_INTERVAL:
+            enemy = spawn_enemy(game_map, camera)
+
+            if enemy is not None:
+                enemies.append(enemy)
+
+            last_enemy_spawn_time = current_time
+
         for bullet in bullets:
             bullet.update(game_map)
 
-        bullets = [bullet for bullet in bullets if bullet.alive]
+        for enemy in enemies:
+            enemy.update(player, game_map)
 
-        camera.follow(player)
+        for bullet in bullets:
+            for enemy in enemies:
+                if enemy.alive and bullet.alive and enemy.collides_with_bullet(bullet):
+                    enemy.alive = False
+                    bullet.alive = False
+
+        for enemy in enemies:
+            if enemy.collides_with_player(player):
+                print("Player hit!")
+
+        bullets = [bullet for bullet in bullets if bullet.alive]
+        enemies = [enemy for enemy in enemies if enemy.alive]
 
         game_map.draw(screen, camera)
 
         for bullet in bullets:
             bullet.draw(screen, camera)
+
+        for enemy in enemies:
+            enemy.draw(screen, camera)
 
         player.draw(screen, camera)
 
