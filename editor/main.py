@@ -6,6 +6,9 @@ import json
 from constants import *
 from tileforge import Map, Tileset, Renderer, get_absolute_path, get_from_home
 
+MAP_WIDTH = 20
+MAP_HEIGHT = 12
+
 SAVE_FILE_NAME = "tileset-editor-save.json"
 EXPORT_FILE_NAME = "tileset-editor-export"
 
