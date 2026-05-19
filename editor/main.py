@@ -1,10 +1,10 @@
-import os.path
 import warnings
-from lib import draw_crossed_box, choose_tileset, handle_key_down, get_number_key_index, get_absolute_path, \
-    get_home_directory
+from pathlib import Path
+
+from lib import draw_crossed_box, choose_tileset, handle_key_down, get_number_key_index
 import json
 from constants import *
-from tileforge import Map, Tileset, Renderer
+from tileforge import Map, Tileset, Renderer, get_absolute_path, get_from_home
 
 SAVE_FILE_NAME = "tileset-editor-save.json"
 EXPORT_FILE_NAME = "tileset-editor-export"
@@ -345,7 +345,7 @@ class Editor:
         self.running = False
 
     def _save(self, _e):
-        path = os.path.join(get_home_directory(), SAVE_FILE_NAME)
+        path = get_from_home(Path(SAVE_FILE_NAME))
         self.save_map(path)
 
     def _open(self, _e):
@@ -353,13 +353,11 @@ class Editor:
         self.current_rotation = 0
         self.selected_level = 0
         self.selected_tile = 0
-        path = os.path.join(get_home_directory(), SAVE_FILE_NAME)
-        self.load_map(path)
+        self.load_map(get_from_home(Path(SAVE_FILE_NAME)))
 
     def _export(self, _e):
-        path = os.path.join(get_home_directory(), EXPORT_FILE_NAME)
-        self.export_map(f"{path}.json")
-        self.export_map_as_image(f"{path}.png")
+        self.export_map(get_from_home(Path(EXPORT_FILE_NAME + ".json")))
+        self.export_map_as_image(get_from_home(Path(EXPORT_FILE_NAME + ".png")))
 
     def _select_tileset(self, _e):
         path = choose_tileset()
