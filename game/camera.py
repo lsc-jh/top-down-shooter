@@ -1,6 +1,5 @@
 from lib import clamp
 
-
 class Camera:
     def __init__(self, screen_width, screen_height, map_width, map_height):
         self.x = 0

@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>2D Camera Visualization</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #111827;
+            color: #f9fafb;
+            display: flex;
+            min-height: 100vh;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .page {
+            width: min(1100px, 100%);
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .panel {
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 18px;
+            padding: 18px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+        }
+
+        canvas {
+            width: 100%;
+            background: #020617;
+            border-radius: 14px;
+            border: 1px solid #4b5563;
+            display: block;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 24px;
+        }
+
+        h2 {
+            margin: 18px 0 8px;
+            font-size: 16px;
+        }
+
+        p {
+            color: #d1d5db;
+            line-height: 1.5;
+            margin: 8px 0;
+        }
+
+        code {
+            background: #111827;
+            padding: 2px 5px;
+            border-radius: 6px;
+            color: #93c5fd;
+        }
+
+        .formula {
+            background: #111827;
+            border: 1px solid #374151;
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 10px;
+            color: #e5e7eb;
+        }
+
+        button {
+            border: 0;
+            border-radius: 12px;
+            background: #2563eb;
+            color: white;
+            font-weight: 700;
+            padding: 12px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid #374151;
+            color: #d1d5db;
+        }
+
+        .stat strong {
+            color: white;
+            font-variant-numeric: tabular-nums;
+        }
+
+        @media (max-width: 900px) {
+            .page {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<main class="page">
+    <section class="panel">
+        <canvas id="canvas" width="760" height="520"></canvas>
+    </section>
+
+    <aside class="panel">
+        <h1>2D Camera Demo</h1>
+        <p>
+            The big blue rectangle is the whole world. The white rectangle is the camera.
+            The smaller dark viewport is what the player actually sees on screen.
+        </p>
+
+        <h2>The core idea</h2>
+        <p>
+            Objects do not really move because of the camera. They stay at their own
+            world position. When drawing, we subtract the camera position.
+        </p>
+
+        <div class="formula">
+            screenX = worldX - cameraX<br/>
+            screenY = worldY - cameraY
+        </div>
+
+        <h2>Current values</h2>
+        <div class="stat"><span>Player world X</span><strong id="playerX">0</strong></div>
+        <div class="stat"><span>Player world Y</span><strong id="playerY">0</strong></div>
+        <div class="stat"><span>Camera X</span><strong id="cameraX">0</strong></div>
+        <div class="stat"><span>Camera Y</span><strong id="cameraY">0</strong></div>
+        <div class="stat"><span>Player screen X</span><strong id="screenX">0</strong></div>
+        <div class="stat"><span>Player screen Y</span><strong id="screenY">0</strong></div>
+
+        <h2>Try this</h2>
+        <p>
+            Move the player with <code>WASD</code>, arrow keys, or the buttons. In the middle
+            of the world, the camera follows. Near the world edges, the camera stops so it
+            does not show empty space outside the map.
+        </p>
+    </aside>
+</main>
+
+<script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const world = {
+        width: 1400,
+        height: 900,
+    };
+
+    const viewport = {
+        width: 520,
+        height: 340,
+    };
+
+    const preview = {
+        x: 30,
+        y: 30,
+        width: 700,
+        height: 440,
+    };
+
+    const player = {
+        x: 120,
+        y: 100,
+        size: 32,
+        speed: 6,
+    };
+
+    const camera = {
+        x: 0,
+        y: 0,
+        width: viewport.width,
+        height: viewport.height,
+    };
+
+    const keys = new Set();
+
+    function clamp(value, min, max) {
+        return Math.max(min, Math.min(value, max));
+    }
+
+    function updateCamera() {
+        const wantedX = player.x + player.size / 2 - camera.width / 2;
+        const wantedY = player.y + player.size / 2 - camera.height / 2;
+
+        camera.x = clamp(wantedX, 0, world.width - camera.width);
+        camera.y = clamp(wantedY, 0, world.height - camera.height);
+    }
+
+    function worldToMiniMapX(x) {
+        return preview.x + (x / world.width) * preview.width;
+    }
+
+    function worldToMiniMapY(y) {
+        return preview.y + (y / world.height) * preview.height;
+    }
+
+    function drawWorldOverview() {
+        ctx.fillStyle = "#0f172a";
+        ctx.fillRect(preview.x, preview.y, preview.width, preview.height);
+
+        ctx.strokeStyle = "#38bdf8";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(preview.x, preview.y, preview.width, preview.height);
+
+        const gridSize = 100;
+        ctx.strokeStyle = "rgba(148, 163, 184, 0.25)";
+        ctx.lineWidth = 1;
+
+        for (let x = 0; x <= world.width; x += gridSize) {
+            const miniX = worldToMiniMapX(x);
+            ctx.beginPath();
+            ctx.moveTo(miniX, preview.y);
+            ctx.lineTo(miniX, preview.y + preview.height);
+            ctx.stroke();
+        }
+
+        for (let y = 0; y <= world.height; y += gridSize) {
+            const miniY = worldToMiniMapY(y);
+            ctx.beginPath();
+            ctx.moveTo(preview.x, miniY);
+            ctx.lineTo(preview.x + preview.width, miniY);
+            ctx.stroke();
+        }
+    }
+
+    function drawCameraOnOverview() {
+        const x = worldToMiniMapX(camera.x);
+        const y = worldToMiniMapY(camera.y);
+        const width = (camera.width / world.width) * preview.width;
+        const height = (camera.height / world.height) * preview.height;
+
+        ctx.fillStyle = "rgba(255, 255, 255, 0.12)";
+        ctx.fillRect(x, y, width, height);
+
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x, y, width, height);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "14px system-ui";
+        ctx.fillText("camera / visible screen", x + 8, y + 22);
+    }
+
+    function drawPlayerOnOverview() {
+        const x = worldToMiniMapX(player.x + player.size / 2);
+        const y = worldToMiniMapY(player.y + player.size / 2);
+
+        ctx.fillStyle = "#ef4444";
+        ctx.beginPath();
+        ctx.arc(x, y, 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#fecaca";
+        ctx.font = "14px system-ui";
+        ctx.fillText("player", x + 12, y + 5);
+    }
+
+    function drawViewport() {
+        const x = 120;
+        const y = 395;
+        const scale = 0.55;
+        const width = viewport.width * scale;
+        const height = viewport.height * scale;
+
+        ctx.fillStyle = "#020617";
+        ctx.fillRect(x, y, width, height);
+
+        ctx.strokeStyle = "#f8fafc";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, width, height);
+
+        const playerScreenX = player.x - camera.x;
+        const playerScreenY = player.y - camera.y;
+
+        ctx.fillStyle = "#ef4444";
+        ctx.fillRect(
+            x + playerScreenX * scale,
+            y + playerScreenY * scale,
+            player.size * scale,
+            player.size * scale
+        );
+
+        ctx.fillStyle = "#e5e7eb";
+        ctx.font = "14px system-ui";
+        ctx.fillText("what the player sees", x, y - 10);
+
+        ctx.fillStyle = "#93c5fd";
+        ctx.fillText(
+            `draw player at: ${Math.round(playerScreenX)}, ${Math.round(playerScreenY)}`,
+            x + width + 24,
+            y + 30
+        );
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawWorldOverview();
+        drawCameraOnOverview();
+        drawPlayerOnOverview();
+        drawViewport();
+        updateStats();
+    }
+
+    function updateStats() {
+        const playerScreenX = player.x - camera.x;
+        const playerScreenY = player.y - camera.y;
+
+        document.getElementById("playerX").textContent = Math.round(player.x);
+        document.getElementById("playerY").textContent = Math.round(player.y);
+        document.getElementById("cameraX").textContent = Math.round(camera.x);
+        document.getElementById("cameraY").textContent = Math.round(camera.y);
+        document.getElementById("screenX").textContent = Math.round(playerScreenX);
+        document.getElementById("screenY").textContent = Math.round(playerScreenY);
+    }
+
+    function move(dx, dy) {
+        player.x = clamp(player.x + dx, 0, world.width - player.size);
+        player.y = clamp(player.y + dy, 0, world.height - player.size);
+        updateCamera();
+        draw();
+    }
+
+    function tick() {
+        let dx = 0;
+        let dy = 0;
+
+        if (keys.has("ArrowLeft") || keys.has("a")) dx -= player.speed;
+        if (keys.has("ArrowRight") || keys.has("d")) dx += player.speed;
+        if (keys.has("ArrowUp") || keys.has("w")) dy -= player.speed;
+        if (keys.has("ArrowDown") || keys.has("s")) dy += player.speed;
+
+        if (dx !== 0 || dy !== 0) {
+            move(dx, dy);
+        }
+
+        requestAnimationFrame(tick);
+    }
+
+    window.addEventListener("keydown", (event) => {
+        keys.add(event.key);
+    });
+
+    window.addEventListener("keyup", (event) => {
+        keys.delete(event.key);
+    });
+
+    updateCamera();
+    draw();
+    tick();
+</script>
+</body>
+</html>
