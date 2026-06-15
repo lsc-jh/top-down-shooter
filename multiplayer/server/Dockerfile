@@ -5,9 +5,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY server.py .
+COPY main.py .
 COPY tileset-editor-export.json .
 
 EXPOSE 9999
 
-CMD ["python", "server.py"]
+CMD ["python", "main.py"]
