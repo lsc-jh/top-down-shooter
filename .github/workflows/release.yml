@@ -25,5 +25,5 @@ jobs:
       - name: Build and push Docker image
         working-directory: ./multiplayer/server
         run: |
-          docker build -t ghcr.io/joshika39/multiplayer-server:latest .
-          docker push ghcr.io/joshika39/multiplayer-server:latest
+          docker build -t ghcr.io/lsc-jh/top-down-shooter/multiplayer-server:latest .
+          docker push ghcr.io/lsc-jh/top-down-shooter/multiplayer-server:latest
