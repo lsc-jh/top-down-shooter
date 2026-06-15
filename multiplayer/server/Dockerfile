@@ -8,6 +8,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY main.py .
 COPY tileset-editor-export.json .
 
-EXPOSE 9999
+EXPOSE 8080
 
 CMD ["python", "main.py"]

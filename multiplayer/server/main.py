@@ -7,7 +7,7 @@ import uuid
 from tileforge import Map, Tileset
 
 HOST = "0.0.0.0"
-PORT = 9999
+PORT = 8080
 
 TICK_RATE = 60
 PLAYER_SPEED = 180

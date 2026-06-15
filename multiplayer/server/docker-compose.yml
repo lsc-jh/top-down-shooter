@@ -10,7 +10,7 @@ services:
       - "traefik.tcp.routers.multiplayer.rule=HostSNI(`*`)"
       - "traefik.tcp.routers.multiplayer.entrypoints=ws"
       - "traefik.tcp.routers.multiplayer.service=multiplayer"
-      - "traefik.tcp.services.multiplayer.loadbalancer.server.port=9999"
+      - "traefik.tcp.services.multiplayer.loadbalancer.server.port=8080"
 
 networks:
   traefik:
