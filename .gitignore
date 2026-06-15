@@ -16,3 +16,5 @@ __pycache__/
 !assets/
 
 *.egg-info
+
+!multiplayer/server/tileset-editor-export.json

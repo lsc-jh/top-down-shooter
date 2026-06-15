@@ -1,58 +1,29 @@
-name: Build & Release Executables
+name: Build multiplayer server
 
 on:
-  release:
-    types: [created]
-
-permissions:
-  contents: write
+  push:
 
 jobs:
   build:
-    name: Build for ${{ matrix.os }}
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      matrix:
-        include:
-          - os: macos
-            runner: macos-latest
-            ext: ""
-          - os: windows
-            runner: windows-latest
-            ext: ".exe"
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
         with:
-          python-version: "3.13"
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Install pyinstaller
-        run: pip install pyinstaller
-
-      - name: Build with PyInstaller
+      - name: Build and push Docker image
+        working-directory: ./multiplayer/server
         run: |
-          cd editor/
-          pyinstaller --onefile main.py --name editor-${{ matrix.os }}${{ matrix.ext }}
-
-      - name: Rename binary
-        run: |
-          mv dist/editor-${{ matrix.os }}${{ matrix.ext }} editor-${{ matrix.os }}${{ matrix.ext }}
-        shell: bash
-
-      - name: Make binary executable (macOS)
-        if: matrix.os == 'macos'
-        run: chmod +x editor-${{ matrix.os }}
-
-      - name: Upload binary to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: editor-${{ matrix.os }}${{ matrix.ext }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          docker build -t ghcr.io/joshika39/multiplayer-server:latest .
+          docker push ghcr.io/joshika39/multiplayer-server:latest
